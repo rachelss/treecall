@@ -106,7 +106,7 @@ class Vcf(object):
         Args:
             self (Vcf): a line of a vcf file with all the info about the variant
             tag (str): either 'DPR' or 'PL' (Number of high-quality bases observed for each allele or List of Phred-scaled genotype likelihoods)
-            fmt (dict): item:pos_in_list from the 9th column of a vcf line e.g. PL:1 DP:2 DV:3 DPR:4
+            fmt (dict): item:pos_in_list from the 9th column of a vcf line e.g. PL:0 DP:1 DV:2 DPR:3
             func (func): apply this to the particular info from col 10 eg splits PL string by commas if func=str.split and args=','
             args (): see func
     
@@ -117,6 +117,9 @@ class Vcf(object):
         if tag in self.gtypes:
             return self.gtypes[tag]
         gtype = []
+        
+        assert tag in fmt, tag+' is not in this vcf line'
+        
         for s in self.extra:
             content = (s.split(':'))[fmt[tag]]  #get 10th col of vcf as list - access the values for item of interest e.g. PL or DPR
             if func is None:

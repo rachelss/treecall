@@ -175,9 +175,9 @@ def calc_compat(PLs):
     """
     print('calc_compat() begin', end=' ', file=sys.stderr)
     n,m,g = PLs.shape       #get array dimensions - ie num_variants, 2
-    nidx = np.arange(n)     #from 0 to num var
-    midx = np.arange(m)     #from 0 to 2
-    kn = np.tile(nidx,m).reshape(m,n)
+    nidx = np.arange(n)     #ints from 0 to num var
+    midx = np.arange(m)     #ints from 0 to 2
+    kn = np.tile(nidx,m).reshape(m,n)   #repeat nidx m times
     km = np.repeat(midx,n).reshape(m,n)
 
     PLs = PLs.astype(int)
