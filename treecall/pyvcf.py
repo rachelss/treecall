@@ -49,19 +49,35 @@ def PL10_order(ref, alt):
 
 @memoized
 def DPR4_order(ref, alt):
+    """Get the position of the base in order of ref,alt,not
+
+    Args:
+        ref (str): Reference base
+        alt (str): Alternate base(s) (separated by ,)
+
+    Returns:
+        list: 
+
+    """
+    nt = ('A','C','G','T')
+    assert ref in nt, "Reference allele not a nucleotide"
+    
     if alt == '':
         a = [ref]
     else:
-        a = [ref] + alt.split(',')
-    aidx = {a[i]:i for i in xrange(0,len(a))}
-    nt = ('A','C','G','T')
-    for x in nt:
-        if x not in aidx:
-            aidx[x] = len(a)
-    return [aidx[x] for x in nt]
+        alts = alt.split(',')
+        for al in alts:
+            assert al in nt, "Alternate allele not a nucleotide"
+        a = [ref] + alt.split(',')  #a is a list of alleles
+            
+    #[ unicode(x.strip()) if x is not None else '' for x in row ]
+    return [a.index(x) if x in a else len(a) for x in nt]
 
 
 class Vcf(object):
+    #example vcf line:
+    #1 898921 . C G,<X> 0 . DP=211;I16=112,51,1,0,7057,346989,16,256,8061,399183,50,2500,3220,73296,25,625;QS=0.997431,0.00256946,0;SGB=-0.379885;RPB=1;MQB=1;MQSB=0.792466;BQB=1;MQ0F=0    PL:DP:DV:DPR    0,255,255,255,255,255:164:1:163,1,0
+    
     def __init__(self, line=None, fixed_only=False):
         if line is not None:
             self.line = line.rstrip('\n')
@@ -84,15 +100,29 @@ class Vcf(object):
             self.gtypes = {}
 
     def extract_gtype(self, tag, fmt, func=None, *args):
+        """Get info from col 10 of vcf line for particular criterion eg genotype likelihood or num bases
+            add info for that criterion on self.gtypes
+    
+        Args:
+            self (Vcf): a line of a vcf file with all the info about the variant
+            tag (str): either 'DPR' or 'PL' (Number of high-quality bases observed for each allele or List of Phred-scaled genotype likelihoods)
+            fmt (dict): item:pos_in_list from the 9th column of a vcf line e.g. PL:1 DP:2 DV:3 DPR:4
+            func (func): apply this to the particular info from col 10 eg splits PL string by commas if func=str.split and args=','
+            args (): see func
+    
+        Returns:
+            list: values or adjusted values (eg genotype likelihoods) for particular tag from vcf line
+    
+        """
         if tag in self.gtypes:
             return self.gtypes[tag]
         gtype = []
         for s in self.extra:
-            content = (s.split(':'))[fmt[tag]]
+            content = (s.split(':'))[fmt[tag]]  #get 10th col of vcf as list - access the values for item of interest e.g. PL or DPR
             if func is None:
-                gtype.append(content)
+                gtype.append(content)   #can use values
             else:
-                gtype.append(func(content, *args))
+                gtype.append(func(content, *args))  #can adjust PL or DPR values - eg splits PL string by commas if func=str.split and args=','
         self.gtypes[tag] = gtype
         return gtype
 
@@ -132,6 +162,7 @@ class Vcf(object):
         return [dpr[i] for i in order]
 
     def __str__(self):
+        """Return the vcf line"""
         return self.line
 
 
@@ -139,14 +170,14 @@ class VcfFile(object):
     def __init__(self, filename=None, ifmt=None):
         if filename is not None:
             self.filename = filename
-            self.ifmt = ifmt or self._get_format(filename)
+            self.ifmt = ifmt or self._get_format(filename)      #either z for .gz or v (for vcf?)
             self.opened = False
             self.vcf_hdr = []
             self.samples = []
-            self.fmt = {}
+            self.fmt = {}   #a dict of item:pos_in_list from the 9th column of a vcf line
             self.read_vcf_header()
             if len(self.samples) > 0:
-                self.read_FMT()
+                self.read_FMT()     #sets fmt to a dict of item:pos_in_list
 
     def __iter__(self):
         self.open()
@@ -167,10 +198,12 @@ class VcfFile(object):
 
     @staticmethod
     def parse_FMT(fmt):
+        """Splits a string by : and converts it to a dict of item:pos in list  (applied to the 9th col of a vcf)"""
         tags = fmt.split(':')
         return {v:i for i,v in enumerate(tags)}
 
     def _get_format(self, filename=None):
+        """Get format of vcf file - either z or v for .gz or not"""
         filename = filename or self.filename
         base, ext = splitext(filename)
         return 'z' if ext == '.gz' else 'v'
@@ -231,8 +264,8 @@ class VcfFile(object):
             line = self.next()
             if line[0] != '#':
                 break
-        self.fmt_line = line.rstrip('\n')
+        self.fmt_line = line.rstrip('\n')       #get first non-info line of vcf
         fields = self.fmt_line.split('\t')
-        self.fmt = VcfFile.parse_FMT(fields[8])
+        self.fmt = VcfFile.parse_FMT(fields[8]) #fields[8] is a bunch of info such as PL:DP:DV:DPR - parsing makes a dict of item:pos_in_list
         if self.seekable:
             self.f.seek(self.data_pos)

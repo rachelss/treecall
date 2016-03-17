@@ -28,6 +28,7 @@ F3,F10 = float(I3),float(I10)
 DELTA = 1e-4
 
 def iter_vcf(vcffile):
+    """Why is this here? It's the same as treecall.pyvcf VcfFile.__iter__"""
     vcffile.open()
     if vcffile.seekable:
         line = '#'
@@ -46,19 +47,17 @@ def iter_vcf(vcffile):
 
 
 def read_vcf(filename, evidence=60):
-    """Read vcf file
-    
-    Extended description of function.
+    """Read vcf file - get info about variants
 
     Args:
         filename (str): vcf filename
         evidence (int): minimum evidence in Phred scale for a site to be considered, default 60
 
     Returns:
-        vcffile (VcfFile)
-        variants (np.array):
-        DPRs (np.array (int)): 
-        PLs (np.array (int)): 
+        VcfFile: a vcffile
+        np.array (tuple): variant info (chrom, pos, ref)  for each variant
+        np.array (int): Number of high-quality bases observed for each of the 2 most common alleles for each variant
+        np.array (int): List of Phred-scaled genotype likelihoods for each of the 2 most common alleles for each variant
 
     """
     print('read_vcf() begin', end=' ', file=sys.stderr)
@@ -77,10 +76,10 @@ def read_vcf(filename, evidence=60):
     for v in vcffile:
         try:
             variants.append((v.CHROM,v.POS,v.REF))
-            dpr = np.array(v.extract_gtype('DPR', fmt, strsplit, ','), dtype=np.uint16)
+            dpr = np.array(v.extract_gtype('DPR', fmt, strsplit, ','), dtype=np.uint16)     #get bases obs for each allele
             ak = dpr.sum(axis=0).argsort(kind='mergesort')[-2:][::-1] # allele ordered by decreasing depth, take only the two most common alleles
             DPRs.append(dpr[...,ak])
-            pl = np.array(v.extract_gtype('PL', fmt, strsplit, ','), dtype=np.uint16)
+            pl = np.array(v.extract_gtype('PL', fmt, strsplit, ','), dtype=np.uint16)   #get genotype likelihoods obs for each allele
             gk = a2g[ak[0],ak[1]] # take only gtypes formed by the two most common alleles, ordered by increasing PL (decreasing GL)
             PLs.append(pl[...,gk])
         except Exception as e:
@@ -99,6 +98,19 @@ def read_vcf(filename, evidence=60):
 
 
 def read_vcf_records(vcffile, fmt, maxn=1000):
+    """Read vcf file - get info about variants - need to clarify how this is different from read_vcf
+
+    Args:
+        vcffile (VcfFile)
+        fmt(dict): item:pos_in_list from the 9th column of a vcf line
+        maxn (int): number of lines / sites in file to process
+
+    Returns:
+        np.array (tuple): variant info (chrom, pos, ref)
+        np.array (int): Number of high-quality bases observed for each of the 2 most common alleles
+        np.array (double): List of Phred-scaled genotype likelihoods for each of the 2 most common alleles
+
+    """    
     print('read next %d sites' % maxn, end=' ', file=sys.stderr)
     variants,DPRs,PLs = [],[],[]
     i = 0
@@ -128,8 +140,6 @@ def read_vcf_records(vcffile, fmt, maxn=1000):
 def compat_main(args):
     """calculate pairwise compatibility between all pairs of sites
 
-    Extended description of function.
-
     Args:
         args.vcf (str): input vcf/vcf.gz file or - stdin
         args.output (str): file to output compatibility matrix
@@ -152,10 +162,21 @@ def compat_main(args):
 
 
 def calc_compat(PLs):
+    """Summary line.
+
+    Extended description of function.
+
+    Args:
+        PLs (np.array (int)): List of Phred-scaled genotype likelihoods for each of the 2 most common alleles for each variant
+
+    Returns:
+        np.array: 
+
+    """
     print('calc_compat() begin', end=' ', file=sys.stderr)
-    n,m,g = PLs.shape
-    nidx = np.arange(n)
-    midx = np.arange(m)
+    n,m,g = PLs.shape       #get array dimensions - ie num_variants, 2
+    nidx = np.arange(n)     #from 0 to num var
+    midx = np.arange(m)     #from 0 to 2
     kn = np.tile(nidx,m).reshape(m,n)
     km = np.repeat(midx,n).reshape(m,n)
 
