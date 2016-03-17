@@ -1,6 +1,12 @@
 # treecall
 Tree-based joint lineage inference and somatic mutation calling
 
+To must be running python2.X
+
+You must have the following installed:
+editdist (the version for python2 - https://code.google.com/p/py-editdist/)
+ete2 (note not ete3) (https://github.com/jhcepas/ete/tree/2.3)
+
 ```
 usage: treecall.py [-h] <command> ...
 

@@ -14,16 +14,37 @@ def warning(*obj):
 
 @memoized
 def PL10_order(ref, alt):
+    """Get the position of the genotype likelihood in the PL field
+
+    There are 10 possible genotypes. The PL field in a vcf file has a normalized Phred-scaled likelihood for
+    each of the possible genotypes. This provides the expected order of genotypes in that field.
+
+    Args:
+        ref (str): Reference base
+        alt (str): Alternate base(s) (separated by ,)
+
+    Returns:
+        list: For each allele (all 10) its genotype number e.g. 0 for homozygous ref, 1 for het, 2 for homo alt
+
+    """
+    nt = ('A','C','G','T')
+    assert ref in nt, "Reference allele not a nucleotide"
+    
     if alt == '':
         a = [ref]
     else:
-        a = [ref] + alt.split(',')
-    aidx = {a[i]:i for i in xrange(0,len(a))}
-    nt = ('A','C','G','T')
+        alts = alt.split(',')
+        for al in alts:
+            assert al in nt, "Alternate allele not a nucleotide"
+        a = [ref] + alt.split(',')  #a is a list of alleles
+        
+    aidx = {b:i for i,b in enumerate(a)}  #aidx is a dict of allele:pos in list
+
     for x in nt:
         if x not in aidx:
             aidx[x] = len(a)
-    return [aidx[nt[i]]+aidx[nt[j]]*(aidx[nt[j]]+1)/2 for i in xrange(4) for j in xrange(i,4)]
+    
+    return [aidx[b1]+aidx[b2]*(aidx[b2]+1)/2 for i,b1 in enumerate(nt) for b2 in nt[i:]]
 
 
 @memoized

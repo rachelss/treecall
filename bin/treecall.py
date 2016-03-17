@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 # Author: Ni Huang <nihuang at genetics dot wustl dot edu>
 
@@ -12,8 +12,8 @@ import itertools
 import numpy as np
 from scipy.stats import sem
 from editdist import distance as strdist
-from memoize import memoized
-from pyvcf import Vcf,VcfFile,warning
+from treecall.memoize import memoized
+from treecall.pyvcf import Vcf,VcfFile,warning
 
 with warnings.catch_warnings(ImportWarning):
     from ete2 import Tree
@@ -46,6 +46,21 @@ def iter_vcf(vcffile):
 
 
 def read_vcf(filename, evidence=60):
+    """Read vcf file
+    
+    Extended description of function.
+
+    Args:
+        filename (str): vcf filename
+        evidence (int): minimum evidence in Phred scale for a site to be considered, default 60
+
+    Returns:
+        vcffile (VcfFile)
+        variants (np.array):
+        DPRs (np.array (int)): 
+        PLs (np.array (int)): 
+
+    """
     print('read_vcf() begin', end=' ', file=sys.stderr)
     vcffile = VcfFile(filename)
     fmt = vcffile.fmt
@@ -111,6 +126,19 @@ def read_vcf_records(vcffile, fmt, maxn=1000):
 
 
 def compat_main(args):
+    """calculate pairwise compatibility between all pairs of sites
+
+    Extended description of function.
+
+    Args:
+        args.vcf (str): input vcf/vcf.gz file or - stdin
+        args.output (str): file to output compatibility matrix
+        args.min_ev (int): minimum evidence in Phred scale for a site to be considered, default 60
+
+    Output to file:
+        
+
+    """
     vcffile, variants, DPRs, PLs = read_vcf(args.vcf, args.min_ev)
     #n_site, n_smpl = PLs.shape[0:2]
     #sidx = np.arange(n_smpl)
@@ -183,6 +211,15 @@ def neighbor_main(args):
 
 
 def init_star_tree(n):
+    """Creates a tree, adds n children in star with numbers as names
+
+    Args:
+        n (int): Number of children in tree
+
+    Returns:
+        Tree: 
+    """
+    
     tree = Tree()
     for i in xrange(n):
         tree.add_child(name=str(i))
@@ -528,6 +565,14 @@ def annotate_nodes(tree, attr, values):
 
 
 def tview_main(args):
+    """Takes input newick tree, prints tree with labels
+
+    Args:
+        args.tree (str): string containing newick to be converted to Tree
+        args.attrs (str): node attributes given by a comma separated list
+        args.label (str): leaves label
+
+    """
     tree = Tree(args.tree)
     if args.attrs:
         attrs = args.attrs.split(',')
@@ -806,12 +851,29 @@ def recursive_NNI(tree, mm0, mm1, base_prior):
 
 
 def compare_main(args):
+    	
+    """compare tree topologies
+
+    Args:
+        args.tree (str): input tree(s), in Newick format
+        args.ref (str): reference tree, in Newick format
+        
+    Prints:
+        tree
+        result['norm_rf']: normalized robinson-foulds distance (from 0 to 1)
+        result['ref_edges_in_source']: compatibility score of the target tree with respect to the source tree (how many edges in reference are found in the source)
+        result['source_edges_in_ref']: compatibility score of the source tree with respect to the reference tree (how many edges in source are found in the reference)
+        dstat: sum of differences between two distance matrices / sum of ref matrix
+        rstat: 
+
+    """
+    
     print(args, file=sys.stderr)
     ref_tree = Tree(args.ref)
-    ref_am = tree2adjacency(ref_tree)
+    ref_am = tree2adjacency(ref_tree)   #matrix of "distances" for ref (node counts)
     for f in args.tree:
         tree = Tree(f)
-        am = tree2adjacency(tree)
+        am = tree2adjacency(tree)   #matrix of "distances" for comparison
         if ref_am.shape != am.shape:
             print('%s incompatible with %s' % (f, args.ref), file=sys.stderr)
         else:
@@ -824,13 +886,23 @@ def compare_main(args):
             ratio[ratio>1] = 1.0/ratio[ratio>1]
             rstat = np.power(ratio.prod(), 1.0/k.sum())
 
-            result = ref_tree.compare(tree, unrooted=True)
+            result = ref_tree.compare(tree, unrooted=True)  #comparison calculated by ete2
 
             # <tree>,<norm_rf>,<ref_edge_in_tree>,<tree_edge_in_ref>,<diff_adj>,<ratio_adj>
             print('%s\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f' % (f, result['norm_rf'], result['ref_edges_in_source'], result['source_edges_in_ref'], dstat, rstat))
 
 
 def tree2adjacency(tree):
+    """Get the number of nodes between leaves formatted as np array
+
+    Args:
+        tree (Tree): 
+
+    Returns:
+        np array (float): matrix of size num_leaves x num_leaves containing the number of nodes between pairs of leaves
+            num nodes comes from the get_distance function in ete2 using topology_only
+
+    """
     leaves = tree.get_leaves()
     m = len(leaves)
     adjmat = np.zeros(shape=(m,m), dtype=int)
