@@ -11,9 +11,9 @@ import sys
 import itertools
 import numpy as np
 from scipy.stats import sem
-from editdist import distance as strdist
+from editdistance import eval as strdist
 from treecall.memoize import memoized
-from treecall.pyvcf import Vcf,VcfFile,warning
+import vcf
 
 with warnings.catch_warnings(ImportWarning):
     from ete2 import Tree
@@ -26,24 +26,6 @@ GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
 I3,I10 = len(GTYPE3),len(GTYPE10)
 F3,F10 = float(I3),float(I10)
 DELTA = 1e-4
-
-def iter_vcf(vcffile):
-    """Why is this here? It's the same as treecall.pyvcf VcfFile.__iter__"""
-    vcffile.open()
-    if vcffile.seekable:
-        line = '#'
-    else:
-        line = vcffile.fmt_line
-    while True:
-        if line[0] == '#':
-            pass
-        else:
-            yield Vcf(line)
-        try:
-            line = vcffile.next()
-        except:
-            vcffile.close()
-            break
 
 
 def read_vcf(filename, evidence=60):
@@ -60,11 +42,15 @@ def read_vcf(filename, evidence=60):
         np.array (int): List of Phred-scaled genotype likelihoods for each of the 2 most common alleles for each variant
 
     """
+    vcffile = vcf.Reader(open(filename, 'r'))
+    #TODO assert that correct version of tools used
     print('read_vcf() begin', end=' ', file=sys.stderr)
-    vcffile = VcfFile(filename)
     fmt = vcffile.fmt
     strsplit = str.split
 
+    #given 10 possible genotypes in matrix, this provides indices of likelihoods
+    #for ex. if most common alleles are A,T
+    #then likelihoods of AA, AT, TT are found at pl[0],pl[6],pl[9] where pl extracted from vcf
     a2g = np.array((
         ((0,0,0), (0,1,2), (0,3,5), (0,6,9)),
         ((2,1,0), (2,2,2), (2,4,5), (2,7,9)),
@@ -76,10 +62,12 @@ def read_vcf(filename, evidence=60):
     for v in vcffile:
         try:
             variants.append((v.CHROM,v.POS,v.REF))
-            dpr = np.array(v.extract_gtype('DPR', fmt, strsplit, ','), dtype=np.uint16)     #get bases obs for each allele
-            ak = dpr.sum(axis=0).argsort(kind='mergesort')[-2:][::-1] # allele ordered by decreasing depth, take only the two most common alleles
-            DPRs.append(dpr[...,ak])
-            pl = np.array(v.extract_gtype('PL', fmt, strsplit, ','), dtype=np.uint16)   #get genotype likelihoods obs for each allele
+            dpr = np.array(v.data.AD, dtype=np.uint16)     #get num bases obs for each allele for each sample
+            assert len(dpr)==4
+            ak = dpr.sum(axis=0).argsort(kind='mergesort')[-2:][::-1] # position of two most common alleles in array - assumes all four in dpr
+            DPRs.append(dpr[...,ak])  #get positions ak in dpr
+            pl = np.array(v.data.PL, dtype=np.uint16)   #get genotype likelihoods obs for every possible allele
+            assert len(pl)==10
             gk = a2g[ak[0],ak[1]] # take only gtypes formed by the two most common alleles, ordered by increasing PL (decreasing GL)
             PLs.append(pl[...,gk])
         except Exception as e:
@@ -204,8 +192,25 @@ def find_singleton(PLs):
 
 
 def neighbor_main(args):
+    """neighbor-joining tree
+
+    Args:
+        vcf(str): input vcf/vcf.gz file, "-" for stdin
+        output(str): output basename
+        mu (int): mutation rate in Phred scale, default 80 WHY IS THE DEFAULT 80????? IE 10^-8!!!!!!!!!!!!!!!!
+        het (int): heterozygous rate in Phred scale, default 30
+        min_ev(int): minimum evidence in Phred scale for a site to be considered, default 60
+    
+    Output:
+        newick trees
+    
+    """
     print(args, file=sys.stderr)
     vcffile, variants, DPRs, PLs = read_vcf(args.vcf, args.min_ev)
+    #variants =  np.array (tuple): variant info (chrom, pos, ref)  for each variant
+    #DPRs = np.array (int): Number of high-quality bases observed for each of the 2 most common alleles for each variant
+    #PLs = np.array (int): List of Phred-scaled genotype likelihoods for each of the 2 most common alleles (3 genotypes) for each variant
+    
     base_prior = make_base_prior(args.het, GTYPE3) # base genotype prior
     mm,mm0,mm1 = make_mut_matrix(args.mu, GTYPE3) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
 
@@ -255,7 +260,14 @@ def pairwise_diff(PLs, i, j):
 
 
 def make_D(PLs):
-    n,m,g = PLs.shape
+    """
+    Args:
+        PLs (np.array (longdouble)): List of Phred-scaled genotype likelihoods for each of the 2 most common alleles for each variant
+        
+    Returns:
+        np.array (longdouble)
+    """
+    n,m,g = PLs.shape   #n_site,n_smpl,n_gtype
     D = np.zeros(shape=(2*m-2,2*m-2), dtype=np.longdouble)
     for i,j in itertools.combinations(xrange(m),2):
         D[i,j] = pairwise_diff(PLs, i, j)
@@ -264,6 +276,17 @@ def make_D(PLs):
 
 
 def neighbor_joining(D, tree, internals):
+    """
+    
+    Args:
+        D
+        tree (Tree): tree of class Tree with num tips = num samples
+        internals (np.array)
+        
+    Returns:
+        Tree
+    
+    """
     print('neighbor_joining() begin', end=' ', file=sys.stderr)
     m = len(internals)
     while m > 2:
@@ -505,13 +528,24 @@ def gtype_distance(gt):
     gt_dist = np.zeros((n,n), dtype=int)
     for i,gi in enumerate(gt):
         for j,gj in enumerate(gt):
-            gt_dist[i,j] = min(strdist(gi,gj),strdist(gi,gj[::-1]))
+            gt_dist[i,j] = min(int(strdist(gi,gj)),int(strdist(gi,gj[::-1])))
     return gt_dist
 
 
 def make_mut_matrix(mu, gtypes):
-    pmu = phred2p(mu)
-    gt_dist = gtype_distance(gtypes)
+    """Makes a matrix for genotypes - only depends on mu
+    
+    Args:
+        mu (int): mutation rate in Phred scale, default 80
+        gtypes(np.array (str)): genotypes as 1d array - usually either GTYPE3 (generic het/homos) or GTYPE10 (all possible gtypes)
+        
+    Returns:
+        np.array(float): substitution rate matrix
+        np.array(float): substitution rate matrix with non-diagonal set to 0
+        np.array(float): substitution rate matrix with diagonal set to 0
+    """
+    pmu = phred2p(mu)  #80 -> 10e-08
+    gt_dist = gtype_distance(gtypes) #calculate Levenshtein distance
     mm = pmu**gt_dist
     np.fill_diagonal(mm, 2.0-mm.sum(axis=0))
     mm0 = np.diagflat(mm.diagonal()) # substitution rate matrix with non-diagonal set to 0
@@ -520,6 +554,21 @@ def make_mut_matrix(mu, gtypes):
 
 
 def make_base_prior(het, gtypes):
+    """Base prior probs
+    for het=30, GTYPE3 = np.array(('RR','RA','AA'))
+        [ 3.0124709,  33.012471,  3.0124709]
+
+    for het=30, GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
+        [ 6.0271094, 36.027109, 36.027109, 36.027109, 6.0271094, 36.027109, 36.027109, 6.0271094, 36.027109, 6.0271094]
+    
+    Args:
+        het (int): heterozygous rate in Phred scale, default 30
+        gtypes(np.array (str)): genotypes as 1d array
+    
+    Returns:
+        np.array
+    
+    """
     return normalize_PL(np.array([g[0]!=g[1] for g in gtypes], dtype=np.longdouble)*het)
 
 
@@ -848,6 +897,15 @@ def nearest_neighbor_interchange(node, mm0, mm1, base_prior):
 
 
 def recursive_NNI(tree, mm0, mm1, base_prior):
+    """
+    
+    Args:
+    
+    Returns:
+        Tree
+        
+    
+    """
     print('recursive_NNI() begin', end=' ', file=sys.stderr)
     for node in tree.traverse('postorder'):
         if node.is_leaf():
@@ -936,6 +994,14 @@ def tree2adjacency(tree):
 
 
 def make_gt2sub():
+    """dict of
+        key: pairs of (different) genotypes in tuple
+        value: what (single) substitution happened (None if >1 sub)
+    
+    """
+    NT4 = np.array(('A','C','G','T'))
+    GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
+    
     base_code = {nt:int(10**(i-1)) for i,nt in enumerate(NT4)}
     gt_code = {gt:base_code[gt[0]]+base_code[gt[1]] for gt in GTYPE10}
     sub_decode = {base_code[nt1]-base_code[nt2]:(nt1,nt2) for nt1,nt2 in itertools.permutations(NT4,2)}
@@ -944,7 +1010,13 @@ def make_gt2sub():
 
 
 def make_sub2tstv():
+    """dict of
+        key: base/base tuple
+        value: tv or ts
+    """
+    NT4 = np.array(('A','C','G','T'))
     base_code = {'A':0,'C':1,'G':0,'T':1}
+    
     tstv = ['ts','tv']
     sub2tstv = {(nt1,nt2):tstv[abs(base_code[nt1]-base_code[nt2])] for nt1,nt2 in itertools.permutations(NT4,2)}
     sub2tstv[None] = None
