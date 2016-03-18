@@ -12,7 +12,6 @@ import itertools
 import numpy as np
 from scipy.stats import sem
 from editdistance import eval as strdist
-from treecall.memoize import memoized
 import vcf
 
 with warnings.catch_warnings(ImportWarning):
@@ -20,11 +19,8 @@ with warnings.catch_warnings(ImportWarning):
 
 warnings.filterwarnings('error')
 
-NT4 = np.array(('A','C','G','T'))
 GTYPE3 = np.array(('RR','RA','AA'))
 GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
-I3,I10 = len(GTYPE3),len(GTYPE10)
-F3,F10 = float(I3),float(I10)
 DELTA = 1e-4
 
 
@@ -211,6 +207,7 @@ def neighbor_main(args):
     #DPRs = np.array (int): Number of high-quality bases observed for each of the 2 most common alleles for each variant
     #PLs = np.array (int): List of Phred-scaled genotype likelihoods for each of the 2 most common alleles (3 genotypes) for each variant
     
+    GTYPE3 = np.array(('RR','RA','AA'))
     base_prior = make_base_prior(args.het, GTYPE3) # base genotype prior
     mm,mm0,mm1 = make_mut_matrix(args.mu, GTYPE3) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
 
@@ -222,7 +219,7 @@ def neighbor_main(args):
     internals = np.arange(n_smpl)
     neighbor_joining(D, tree, internals)
 
-    init_tree(tree)
+    init_tree(tree)  #doesn't return anything, doesn't print - what is it doing?
     populate_tree_PL(tree, PLs, mm0, 'PL0')
     calc_mut_likelihoods(tree, mm0, mm1)
 
@@ -374,6 +371,7 @@ def subdiv(PLs, tree):
 
 def partition_main(args):
     print(args, file=sys.stderr)
+    GTYPE3 = np.array(('RR','RA','AA'))
     base_prior = make_base_prior(args.het, GTYPE3) # base genotype prior
     mm,mm0,mm1 = make_mut_matrix(args.mu, GTYPE3) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
 
@@ -614,6 +612,17 @@ def update_PL(node, mm0, mm1):
 
 
 def populate_tree_PL(tree, PLs, mm, attr):
+    """
+    
+    Args:
+        tree (Tree)
+        PLs (np.array)
+        mm
+        attr
+    
+    Returns:
+        Tree
+    """
     n,m,g = PLs.shape # n sites, m samples, g gtypes
     for node in tree.traverse(strategy='postorder'):
         if node.is_leaf():
@@ -622,6 +631,8 @@ def populate_tree_PL(tree, PLs, mm, attr):
             setattr(node, attr, np.zeros((n,g), dtype=np.longdouble))
             for child in node.children:
                 setattr(node, attr, getattr(node, attr) + p2phred(np.dot(phred2p(getattr(child, attr)), mm)))
+                
+    return tree
 
 def score(tree, base_prior):
     Pm = phred2p(tree.PLm+base_prior).sum(axis=(0,2))
@@ -656,6 +667,10 @@ def tview_main(args):
 
 
 def read_label(filename):
+    """from tab delim file: dict of
+        key: first col in file / index
+        value: second col in file (or first col if only one)
+    """
     label = {}
     with open(filename) as f:
         i = 0
@@ -805,6 +820,7 @@ def reroot(tree, mm0, mm1, base_prior):
           |                |                |
            \-C              \-B              \-A
     '''
+
     best_tree = tree
     best_PL = score(tree, base_prior)
 
