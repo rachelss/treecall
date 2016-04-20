@@ -1,6 +1,8 @@
 #!/usr/bin/env python2
 
 # Author: Ni Huang <nihuang at genetics dot wustl dot edu>
+# Author: Rachel Schwartz <Rachel dot Schwartz at asu dot edu>
+# Author: Kael Dai <Kael dot Dai at asu dot edu>
 
 from __future__ import print_function
 import warnings
@@ -29,56 +31,49 @@ def read_vcf(filename, evidence=60):
 
     Args:
         filename (str): vcf filename
-        evidence (int): minimum evidence in Phred scale for a site to be considered, default 60
+        evidence (int): minimum evidence in Phred scale
+            for a site to be considered, default 60
 
     Returns:
-        VcfFile: a vcffile
-        np.array (tuple): variant info (chrom, pos, ref)  for each variant
-        np.array (int): Number of high-quality bases observed for each of the 2 most common alleles for each variant
-        np.array (int): List of Phred-scaled genotype likelihoods for each of the 2 most common alleles for each variant
+        vcf: a vcffile
+        np.array (tuple): variant info (chrom, pos, ref)
+            for each variant
+        np.array (int): Number of high-quality bases observed
+            for each of the 2 most common alleles for each variant
+        np.array (int): List of Phred-scaled genotype likelihoods
+            for each of the genotypes from the 2 most common alleles for each variant
 
     """
     vcffile = vcf.Reader(open(filename, 'r'))
-    #TODO assert that correct version of tools used
-    print('read_vcf() begin', end=' ', file=sys.stderr)
-    fmt = vcffile.fmt
-    strsplit = str.split
-
-    #given 10 possible genotypes in matrix, this provides indices of likelihoods
-    #for ex. if most common alleles are A,T
-    #then likelihoods of AA, AT, TT are found at pl[0],pl[6],pl[9] where pl extracted from vcf
-    a2g = np.array((
-        ((0,0,0), (0,1,2), (0,3,5), (0,6,9)),
-        ((2,1,0), (2,2,2), (2,4,5), (2,7,9)),
-        ((5,3,0), (5,4,2), (5,5,5), (5,8,9)),
-        ((9,6,0), (9,7,2), (9,8,5), (9,9,9)),
-    ))
-
-    variants,DPRs,PLs = [],[],[]
+    bases = ['A','C','G','T']
+    variants,ADs,PLs = [],[],[]
+    
     for v in vcffile:
-        try:
-            variants.append((v.CHROM,v.POS,v.REF))
-            dpr = np.array(v.data.AD, dtype=np.uint16)     #get num bases obs for each allele for each sample
-            assert len(dpr)==4
-            ak = dpr.sum(axis=0).argsort(kind='mergesort')[-2:][::-1] # position of two most common alleles in array - assumes all four in dpr
-            DPRs.append(dpr[...,ak])  #get positions ak in dpr
-            pl = np.array(v.data.PL, dtype=np.uint16)   #get genotype likelihoods obs for every possible allele
-            assert len(pl)==10
-            gk = a2g[ak[0],ak[1]] # take only gtypes formed by the two most common alleles, ordered by increasing PL (decreasing GL)
-            PLs.append(pl[...,gk])
-        except Exception as e:
-            print(e, file=sys.stderr)
-            print(v, file=sys.stderr)
-
+        if v.ALT[0] in bases:
+            ad,pl = [],[]
+            variants.append((v.CHROM,v.POS,v.REF,v.ALT[0]))
+            for s in vcffile.samples: #for each sample
+                call = v.genotype(s)
+                ad.append(call.data.AD) #get num bases obs for each allele for each sample
+                pl.append(call.data.PL)
+            ADs.append(ad)  
+            PLs.append(pl) #PL's of three genotypes - ref/ref, ref/alt, alt/alt
+    
     variants = np.array(variants)
-    DPRs = np.array(DPRs, dtype=np.uint16)
+    ADs = np.array(ADs, dtype=np.uint16)
     PLs = np.array(PLs, dtype=np.uint16)
-
-    k_ev = (PLs.sum(axis=1)>=evidence).sum(axis=1)==3
-    variants,DPRs,PLs = variants[k_ev],DPRs[k_ev],PLs[k_ev]
+    
+    #for each variant, sum PL for each genotype across samples
+    #genotypes are ordered from most to least likely NOT ref/ref, ref/alt, alt/alt
+    #check if PL sums are all greater than evidence
+    #this removes sites where the joint genotyping likelihood across samples
+    #for second most likely genotype is < 10^-6
+    #i.e. most likely genotype for each sample has strong support
+    k_ev = (np.sort(PLs).sum(axis=1)>=evidence).sum(axis=1)==2  #this used to be ==3 but that doesn't seem right - it should be checked
+    variants,ADs,PLs = variants[k_ev],ADs[k_ev],PLs[k_ev]
 
     print(' done', file=sys.stderr)
-    return vcffile, variants, DPRs, PLs
+    return vcffile, variants, ADs, PLs
 
 
 def read_vcf_records(vcffile, fmt, maxn=1000):
@@ -130,72 +125,77 @@ def compat_main(args):
         args.min_ev (int): minimum evidence in Phred scale for a site to be considered, default 60
 
     Output to file:
-        
+        np.array: compatibility matrix
 
     """
     vcffile, variants, DPRs, PLs = read_vcf(args.vcf, args.min_ev)
     #n_site, n_smpl = PLs.shape[0:2]
     #sidx = np.arange(n_smpl)
 
-    compats = calc_compat(PLs)
-    c = compats.sum(axis=-1)
-    k = (c == 0) & ~find_singleton(PLs)
+    compats = calc_compat(PLs) #matrix of num_var x num_var containing 0 for compatible sites (ie same pattern) or 1 if not
+    c = compats.sum(axis=-1)  #not used?
+    k = (c == 0) & ~find_singleton(PLs)  #not used?
 
     gzout = args.output + '.gz'
     np.savetxt(gzout, compats, fmt='%d', delimiter='\t')
 
 
 def calc_compat(PLs):
-    """Summary line.
-
-    Extended description of function.
+    """Create a pairwise compatibility matrix (numpy array) for variants
+    
+    0 if sites are compatible, 1 if not
 
     Args:
         PLs (np.array (int)): List of Phred-scaled genotype likelihoods for each of the 2 most common alleles for each variant
 
     Returns:
-        np.array: 
+        np.array: matrix of num_var x num_var containing 0 for compatible sites (ie same pattern) or 1 if not
 
     """
     print('calc_compat() begin', end=' ', file=sys.stderr)
-    n,m,g = PLs.shape       #get array dimensions - ie num_variants, 2
+    n,m,g = PLs.shape       #get array dimensions - ie n=num_variants, m=num samples, g=num genotypes
     nidx = np.arange(n)     #ints from 0 to num var
-    midx = np.arange(m)     #ints from 0 to 2
+    midx = np.arange(m)     #ints from 0 to num samples
     kn = np.tile(nidx,m).reshape(m,n)   #repeat nidx m times
     km = np.repeat(midx,n).reshape(m,n)
 
     PLs = PLs.astype(int)
-    gt = (PLs[...,0]==0).astype(np.byte) # n x m
-    non_zeros = PLs[kn,km,gt.T].T # n x m
+    gt = (PLs[...,0]==0).astype(np.byte) # num var x num samples; genotype as 1 or 0 (is or not homozygous ref)
+    #WHY ARE NON ZEROS ONE PL V THE OTHER????
+    non_zeros = PLs[kn,km,gt.T].T # n x m; cell is PL of homo ref if it's a het or PL of het if homo ref
+    #still not sure what below is doing to get matrix or whether it's correct
     groups = (2*gt[i]+gt for i in xrange(n)) # each n x m
     cost = (np.minimum(non_zeros[i], non_zeros) for i in xrange(n)) # each n x m
 
-    compats = np.zeros(shape=(n,n), dtype=np.int32)
+    compats = np.zeros(shape=(n,n), dtype=np.int32)  #0 array of num_var x num_var to compare each var 
     for i in xrange(n):
         grp = groups.next()
         cst = cost.next()
-        compats[i,i:] = map(min, map(np.bincount, grp[i:], cst[i:]))
-    compats = compats + compats.T - np.diag(compats.diagonal())
+        compats[i,i:] = map(min, map(np.bincount, grp[i:], cst[i:]))  #only need to fill in half of matrix (symmetrical)
+        #
+    compats = compats + compats.T - np.diag(compats.diagonal())  #make symmetrical
 
     print(' done', file=sys.stderr)
     return compats
 
 
 def find_singleton(PLs):
-    n,m,b = PLs.shape
-    is_singleton = (PLs[...,0]>0).sum(axis=1)==1
+    #check if there is only one sample w/o homozygous ref genotype 
+    is_singleton = (PLs[...,0]>0).sum(axis=1)==1  #get PL for 0/0 for each sample, check if each >0, count these, check if only one
     return is_singleton
 
 
 def neighbor_main(args):
-    """neighbor-joining tree
+    """generate neighbor-joining tree then do recursive NNI and recursive reroot
 
     Args:
         vcf(str): input vcf/vcf.gz file, "-" for stdin
         output(str): output basename
-        mu (int): mutation rate in Phred scale, default 80 WHY IS THE DEFAULT 80????? IE 10^-8!!!!!!!!!!!!!!!!
+        mu (int): mutation rate in Phred scale, default 80
+            WHY IS THE DEFAULT 80????? IE 10^-8!!!!!!!!!!!!!!!!
         het (int): heterozygous rate in Phred scale, default 30
-        min_ev(int): minimum evidence in Phred scale for a site to be considered, default 60
+        min_ev(int): minimum evidence in Phred scale for a site to be considered
+            default 60
     
     Output:
         newick trees
@@ -208,7 +208,7 @@ def neighbor_main(args):
     #PLs = np.array (int): List of Phred-scaled genotype likelihoods for each of the 2 most common alleles (3 genotypes) for each variant
     
     GTYPE3 = np.array(('RR','RA','AA'))
-    base_prior = make_base_prior(args.het, GTYPE3) # base genotype prior
+    base_prior = make_base_prior(args.het, GTYPE3) # base genotype prior; heterozygous rate in Phred scale, default 30; e.g. for het=30 [ 3.0124709,  33.012471,  3.0124709]
     mm,mm0,mm1 = make_mut_matrix(args.mu, GTYPE3) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
 
     PLs = PLs.astype(np.longdouble)
@@ -250,16 +250,20 @@ def init_star_tree(n):
 
 
 def pairwise_diff(PLs, i, j):
+    #these are likely not calculated quite correctly, but it might not matter esp if more NNI
     pli = normalize2d_PL(PLs[:,i])
     plj = normalize2d_PL(PLs[:,j])
     p = phred2p(pli+plj) # n x g
-    return (1-p.sum(axis=1)).sum()
+    return (1-p.sum(axis=1)).sum()  
 
 
 def make_D(PLs):
     """
+    Get pairwise differences between samples (e.g. for generating nj tree)
+    
     Args:
-        PLs (np.array (longdouble)): List of Phred-scaled genotype likelihoods for each of the 2 most common alleles for each variant
+        PLs (np.array (longdouble)): List of Phred-scaled genotype likelihoods
+            for each of the 2 most common alleles for each variant
         
     Returns:
         np.array (longdouble)
@@ -273,10 +277,11 @@ def make_D(PLs):
 
 
 def neighbor_joining(D, tree, internals):
+    #fsum will have better precision when adding distances across sites
     """
     
     Args:
-        D
+        D (np.array): pairwise differences between samples
         tree (Tree): tree of class Tree with num tips = num samples
         internals (np.array)
         
@@ -370,6 +375,21 @@ def subdiv(PLs, tree):
 
 
 def partition_main(args):
+    """
+    a top-down method that partition samples by sum of partition cost across all sites
+    then recursive NNI and recursive reroot 
+    
+    Args:
+        vcf(str): input vcf/vcf.gz file, "-" for stdin
+        output(str): output basename'
+        mu(int): mutation rate in Phred scale, default 80
+        het(int): heterozygous rate in Phred scale, default 30
+        min_ev(int): minimum evidence in Phred scale for a site to be considered (across all samples), default 60
+    
+    Print / save to file:
+        tree, best tree after recursive_NNI and recursive_reroot
+    
+    """
     print(args, file=sys.stderr)
     GTYPE3 = np.array(('RR','RA','AA'))
     base_prior = make_base_prior(args.het, GTYPE3) # base genotype prior
@@ -379,7 +399,9 @@ def partition_main(args):
     n_site,n_smpl = PLs.shape[0:2]
 
     tree = Tree()
-    if sem(PLs[...,1],axis=1).mean() > sem(PLs[...,2],axis=1).mean():
+    #sem calculates the standard error of the mean
+    #check if sem for col 1
+    if sem(PLs[...,1],axis=1).mean() > sem(PLs[...,2],axis=1).mean():  
         partition(PLs[...,0:2], tree, np.arange(n_smpl), args.min_ev)
     else:
         partition(PLs, tree, np.arange(n_smpl), args.min_ev)
@@ -400,6 +422,7 @@ def partition_main(args):
 
 
 def genotype_main(args):
+    GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
     print(args, file=sys.stderr)
 
     tree = Tree(args.tree)
@@ -426,6 +449,7 @@ def genotype_main(args):
 
 
 def genotype(PLs, tree, variants, mm, mm0, mm1, base_prior):
+    GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
     # calculate total likelihoods for each genotypes
     populate_tree_PL(tree, PLs, mm, 'PL') # dim(tree.PL) = site x gtype
     tree_PL = tree.PL + base_prior
@@ -589,6 +613,7 @@ def calc_mut_likelihoods(tree, mm0, mm1):
 
 
 def update_PL(node, mm0, mm1):
+    #fix this so it returns something and doesn't try to use a global variable
     n,g = node.PL0.shape
     l = 2*len(node)-2
     #node.PL0 = np.zeros((n,g), dtype=np.longdouble)
@@ -641,6 +666,7 @@ def score(tree, base_prior):
 
 
 def annotate_nodes(tree, attr, values):
+    #fix this so it returns something and doesn't try to use a global variable
     for node in tree.iter_descendants('postorder'):
         setattr(node, attr, values[node.nid])
 
@@ -652,6 +678,8 @@ def tview_main(args):
         args.tree (str): string containing newick to be converted to Tree
         args.attrs (str): node attributes given by a comma separated list
         args.label (str): leaves label
+        
+    Prints tree
 
     """
     tree = Tree(args.tree)
@@ -913,6 +941,7 @@ def nearest_neighbor_interchange(node, mm0, mm1, base_prior):
 
 
 def recursive_NNI(tree, mm0, mm1, base_prior):
+    #SHOULD DO THIS REPEATEDLY UNTIL OPTIMIZED!!!!!!
     """
     
     Args:
@@ -923,6 +952,7 @@ def recursive_NNI(tree, mm0, mm1, base_prior):
     
     """
     print('recursive_NNI() begin', end=' ', file=sys.stderr)
+    #CHECK OPTIMALITY CRITERION AND LOOP THIS
     for node in tree.traverse('postorder'):
         if node.is_leaf():
             continue
@@ -1045,23 +1075,28 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     subp = parser.add_subparsers(metavar='<command>', help='sub-commands')
 
+    #tview uses tview_main, read_label
     parser_tview = subp.add_parser('tview', help='view tree')
     parser_tview.add_argument('tree', metavar='<nwk>', type=str, help='input tree in Newick format')
     parser_tview.add_argument('-a', metavar='STR', dest='attrs', type=str, help='node attributes to print given by a comma separated list')
     parser_tview.add_argument('-l', metavar='FILE', dest='label', type=str, help='leaves label')
     parser_tview.set_defaults(func=tview_main)
 
+    #compare uses compare_main, tree2adjacency
     parser_compare = subp.add_parser('compare', help='compare tree topology')
     parser_compare.add_argument('-t', metavar='FILE', dest='tree', type=str, nargs='+', required=True, help='input tree(s), in Newick format')
     parser_compare.add_argument('-r', metavar='FILE', dest='ref', type=str, required=True, help='reference tree, in Newick format')
     parser_compare.set_defaults(func=compare_main)
 
+    #compat uses compat_main, read_vcf, calc_compat, find_singleton
     parser_compat = subp.add_parser('compat', help='calculate pairwise compatibility between all pairs of sites')
     parser_compat.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
     parser_compat.add_argument('output', metavar='<output>', type=str, help='output compatibility matrix')
     parser_compat.add_argument('-v', metavar='INT', dest='min_ev', type=int, default=60, help='minimum evidence in Phred scale for a site to be considered, default 60')
     parser_compat.set_defaults(func=compat_main)
 
+    #nbjoin uses neighbor_main, read_vcf, make_base_prior (normalize_PL), make_mut_matrix (phred2p, gtype_distance), make_D (pairwise_diff, normalize2d_PL, phred2p), init_star_tree, neighbor_joining
+    #init_tree, populate_tree_PL, calc_mut_likelihoods (p2phred), recursive_NNI (nearest_neighbor_interchange, update_PL, score), recursive_reroot (reroot, update_PL)
     parser_nbjoin = subp.add_parser('nbjoin', help='neighbor-joining')
     parser_nbjoin.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
     parser_nbjoin.add_argument('output', metavar='output', type=str, help='output basename')
@@ -1070,6 +1105,7 @@ if __name__ == '__main__':
     parser_nbjoin.add_argument('-v', metavar='INT', dest='min_ev', type=int, default=60, help='minimum evidence in Phred scale for a site to be considered, default 60')
     parser_nbjoin.set_defaults(func=neighbor_main)
 
+    #part uses partition_main
     parser_part = subp.add_parser('part', help='a top-down method that partition samples by sum of partition cost across all sites')
     parser_part.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
     parser_part.add_argument('output', metavar='<output>', type=str, help='output basename')
@@ -1078,6 +1114,7 @@ if __name__ == '__main__':
     parser_part.add_argument('-v', metavar='INT', dest='min_ev', type=int, default=60, help='minimum evidence in Phred scale for a site to be considered, default 60')
     parser_part.set_defaults(func=partition_main)
 
+    #gtype uses genotype_main
     parser_gtype = subp.add_parser('gtype', help='genotype samples with help of a lineage tree')
     parser_gtype.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
     parser_gtype.add_argument('output', metavar='<output>', type=str, help='output basename')
@@ -1087,6 +1124,7 @@ if __name__ == '__main__':
     parser_gtype.add_argument('-e', metavar='INT', dest='het', type=int, default=30, help='heterozygous rate in Phred scale, default 30, 0 for uninformative')
     parser_gtype.set_defaults(func=genotype_main)
 
+    #annot uses annotate_main
     parser_annot = subp.add_parser('annot', help='annotate lineage tree with genotype calls')
     parser_annot.add_argument('gtcall', metavar='<gtcall>', type=str, help='input gtype calls, "-" for stdin')
     parser_annot.add_argument('output', metavar='<outnwk>', type=str, help='output tree in Newick format')
