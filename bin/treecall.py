@@ -21,10 +21,6 @@ with warnings.catch_warnings(ImportWarning):
 
 warnings.filterwarnings('error')
 
-GTYPE3 = np.array(('RR','RA','AA'))
-GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
-DELTA = 1e-4
-
 
 def read_vcf(filename, evidence=60):
     """Read vcf file - get info about variants
@@ -50,12 +46,9 @@ def read_vcf(filename, evidence=60):
     
     for v in vcffile:
         if v.ALT[0] in bases:
-            ad,pl = [],[]
             variants.append((v.CHROM,v.POS,v.REF,v.ALT[0]))
-            for s in vcffile.samples: #for each sample
-                call = v.genotype(s)
-                ad.append(call.data.AD) #get num bases obs for each allele for each sample
-                pl.append(call.data.PL)
+            ad = [v.genotype(s).data.AD for s in vcffile.samples] #ad for each sample
+            pl = [v.genotype(s).data.PL for s in vcffile.samples]
             ADs.append(ad)  
             PLs.append(pl) #PL's of three genotypes - ref/ref, ref/alt, alt/alt
     
@@ -214,14 +207,14 @@ def neighbor_main(args):
     PLs = PLs.astype(np.longdouble)
     n_site,n_smpl,n_gtype = PLs.shape
 
-    D = make_D(PLs)
+    D = make_D(PLs)  # pairwise differences between samples based only on PLs (should include mutation, but also shouldn't matter)
     tree = init_star_tree(n_smpl)
     internals = np.arange(n_smpl)
-    neighbor_joining(D, tree, internals)
+    tree = neighbor_joining(D, tree, internals) #haven't checked this 
 
-    init_tree(tree)  #doesn't return anything, doesn't print - what is it doing?
-    populate_tree_PL(tree, PLs, mm0, 'PL0')
-    calc_mut_likelihoods(tree, mm0, mm1)
+    tree = init_tree(tree) 
+    tree = populate_tree_PL(tree, PLs, mm0, 'PL0')
+    tree = calc_mut_likelihoods(tree, mm0, mm1)
 
     print(tree)
     tree.write(outfile=args.output+'.nj0.nwk', format=5)
@@ -259,7 +252,7 @@ def pairwise_diff(PLs, i, j):
 
 def make_D(PLs):
     """
-    Get pairwise differences between samples (e.g. for generating nj tree)
+    Get pairwise differences between samples based only on PLs (e.g. for generating nj tree)
     
     Args:
         PLs (np.array (longdouble)): List of Phred-scaled genotype likelihoods
@@ -278,12 +271,13 @@ def make_D(PLs):
 
 def neighbor_joining(D, tree, internals):
     #fsum will have better precision when adding distances across sites
+    #based on PLs not mutation
     """
     
     Args:
-        D (np.array): pairwise differences between samples
+        D (np.array): pairwise differences between samples based only on PLs
         tree (Tree): tree of class Tree with num tips = num samples
-        internals (np.array)
+        internals (np.array): array of sample numbers
         
     Returns:
         Tree
@@ -291,7 +285,7 @@ def neighbor_joining(D, tree, internals):
     """
     print('neighbor_joining() begin', end=' ', file=sys.stderr)
     m = len(internals)
-    while m > 2:
+    while m > 2:  #if m is 2 then only two connected to root
         d = D[internals[:,None],internals]
         u = d.sum(axis=1)/(m-2)
 
@@ -406,7 +400,7 @@ def partition_main(args):
     else:
         partition(PLs, tree, np.arange(n_smpl), args.min_ev)
 
-    init_tree(tree)
+    tree = init_tree(tree)
     PLs = PLs.astype(np.longdouble)
     populate_tree_PL(tree, PLs, mm, 'PL')
     populate_tree_PL(tree, PLs, mm0, 'PL0')
@@ -426,7 +420,7 @@ def genotype_main(args):
     print(args, file=sys.stderr)
 
     tree = Tree(args.tree)
-    init_tree(tree)
+    tree = init_tree(tree)
 
     base_prior = make_base_prior(args.het, GTYPE10) # base genotype prior
     mm,mm0,mm1 = make_mut_matrix(args.mu, GTYPE10) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
@@ -510,6 +504,10 @@ def genotype(PLs, tree, variants, mm, mm0, mm1, base_prior):
 
 
 def init_tree(tree):
+    """
+    node.sid = list of children
+
+    """
     tree.leaf_order = map(int, tree.get_leaf_names())
 
     for node in tree.traverse(strategy='postorder'):
@@ -525,6 +523,8 @@ def init_tree(tree):
     for i,node in zip(xrange(2*m-1), tree.traverse(strategy='postorder')):
         node.nid = i
         node.sid = sorted(node.sid)
+        
+    return tree
 
 
 def p2phred(x):
@@ -546,11 +546,19 @@ def normalize2d_PL(x):
 
 
 def gtype_distance(gt):
+    """
+    Args:
+        gt(np.array (str)): genotypes as 1d array - usually either GTYPE3 (generic het/homos) or GTYPE10 (all possible gtypes)
+    
+    Return:
+        np.array(int): Levenshtein (string) distance between pairs - eg AA-RR = 2
+    """ 
     n = len(gt)
     gt_dist = np.zeros((n,n), dtype=int)
     for i,gi in enumerate(gt):
         for j,gj in enumerate(gt):
             gt_dist[i,j] = min(int(strdist(gi,gj)),int(strdist(gi,gj[::-1])))
+            
     return gt_dist
 
 
@@ -567,11 +575,12 @@ def make_mut_matrix(mu, gtypes):
         np.array(float): substitution rate matrix with diagonal set to 0
     """
     pmu = phred2p(mu)  #80 -> 10e-08
-    gt_dist = gtype_distance(gtypes) #calculate Levenshtein distance
+    gt_dist = gtype_distance(gtypes) #np.array: Levenshtein (string) distance between pairs - eg AA-RR = 2
     mm = pmu**gt_dist
     np.fill_diagonal(mm, 2.0-mm.sum(axis=0))
     mm0 = np.diagflat(mm.diagonal()) # substitution rate matrix with non-diagonal set to 0
     mm1 = mm - mm0 # substitution rate matrix with diagonal set to 0
+    
     return mm,mm0,mm1
 
 
@@ -611,8 +620,12 @@ def calc_mut_likelihoods(tree, mm0, mm1):
             node.PLm[i] = p2phred(np.dot(phred2p(child.PL0), mm1)) + p2phred(np.dot(phred2p(sister.PL0), mm0))
             i += 1
 
+    return tree
 
 def update_PL(node, mm0, mm1):
+    """
+    PL for nodes depend on children so must be updated if node children change due to nni/reroot
+    """
     #fix this so it returns something and doesn't try to use a global variable
     n,g = node.PL0.shape
     l = 2*len(node)-2
@@ -624,7 +637,7 @@ def update_PL(node, mm0, mm1):
         if child.sid != sid:
             update_PL(child, mm0, mm1)
             child.sid = sid
-        node.PL0 += p2phred(np.dot(phred2p(child.PL0), mm0))
+        node.PL0 += p2phred(np.dot(phred2p(child.PL0), mm0)) 
     i = 0
     for child in node.children:
         sister = child.get_sisters()[0]
@@ -632,35 +645,39 @@ def update_PL(node, mm0, mm1):
             l = child.PLm.shape[0]
             node.PLm[i:(i+l)] = p2phred(np.dot(phred2p(child.PLm), mm0)) + p2phred(np.dot(phred2p(sister.PL0), mm0))
             i += l
-        node.PLm[i] = p2phred(np.dot(phred2p(child.PL0), mm1)) + p2phred(np.dot(phred2p(sister.PL0), mm0))
+        node.PLm[i] = p2phred(np.dot(phred2p(child.PL0), mm1)) + p2phred(np.dot(phred2p(sister.PL0), mm0)) 
         i += 1
 
 
-def populate_tree_PL(tree, PLs, mm, attr):
+def populate_tree_PL(tree, PLs, mm, attr): #e.g. populate_tree_PL(tree, PLs, mm0, 'PL0')
     """
     
     Args:
         tree (Tree)
-        PLs (np.array)
-        mm
-        attr
+        PLs (np.array): phred scaled likelihoods
+        mm: mutation matrix (np array of float) (mm0 has non-diagonal set to 0; mm1 has diagonal set to 0)
+        attr: attribute to be set e.g. PL0
     
     Returns:
-        Tree
+        Tree: now has PLs attached to nodes
     """
     n,m,g = PLs.shape # n sites, m samples, g gtypes
     for node in tree.traverse(strategy='postorder'):
         if node.is_leaf():
-            setattr(node, attr, PLs[:,node.sid[0],])
+            setattr(node, attr, PLs[:,node.sid[0],])  #sid is list of children's labels (numbers) - using 0 b/c only one label for leaf
         else:
             setattr(node, attr, np.zeros((n,g), dtype=np.longdouble))
             for child in node.children:
-                setattr(node, attr, getattr(node, attr) + p2phred(np.dot(phred2p(getattr(child, attr)), mm)))
+                setattr(node, attr, getattr(node, attr) + p2phred(np.dot(phred2p(getattr(child, attr)), mm))) #sum of phred of each child's likelihoods*mut matrix
                 
     return tree
 
 def score(tree, base_prior):
-    Pm = phred2p(tree.PLm+base_prior).sum(axis=(0,2))
+    """
+    used to compare rootings of tree
+    
+    """
+    Pm = phred2p(tree.PLm+base_prior).sum(axis=(0,2))       #why add baseprior
     P0 = phred2p(tree.PL0+base_prior).sum(axis=1)
     return p2phred(Pm+P0).sum()
 
@@ -716,7 +733,7 @@ def annotate_main(args):
     print(args, file=sys.stderr)
 
     tree = Tree(args.tree)
-    init_tree(tree)
+    tree = init_tree(tree)
 
     gtcall = read_gtcall(args.gtcall)
     for node in tree.iter_descendants('postorder'):
@@ -840,7 +857,8 @@ def make_selection_matrix2(m, t=20):
             yield np.array(tuple(bin(i)[2:].zfill(m)), dtype=np.byte)
 
 
-def reroot(tree, mm0, mm1, base_prior):
+def reroot(tree, mm0, mm1, base_prior,DELTA):
+
     '''
               /-A              /-A              /-B
            /-|              /-|              /-|
@@ -854,38 +872,50 @@ def reroot(tree, mm0, mm1, base_prior):
 
     for node in tree.iter_descendants('postorder'):
         tree_reroot = tree.copy()
-        new_root = tree_reroot.search_nodes(sid=node.sid)[0]
-        tree_reroot.set_outgroup(new_root)
-        update_PL(tree_reroot, mm0, mm1)
-        PL_reroot = score(tree_reroot, base_prior)
+        new_root = tree_reroot.search_nodes(sid=node.sid)[0]  #gets node of interest
+        tree_reroot.set_outgroup(new_root)  #sets node of interest to outgroup
+        update_PL(tree_reroot, mm0, mm1)  #new PL given decendants
+        PL_reroot = score(tree_reroot, base_prior) 
         #print(tree_reroot)
         #print(PL_reroot)
-        if PL_reroot < best_PL * (1-DELTA):
+        if PL_reroot < best_PL * (1-DELTA): #new best tree only if significantly better ie trees could be similar but status quo wins
             best_tree = tree_reroot
             best_PL = PL_reroot
+            
     return best_tree,best_PL
 
 
-def recursive_reroot(tree, mm0, mm1, base_prior):
+def recursive_reroot(tree, mm0, mm1, base_prior,DELTA):
+    """
+    starting at tips, work up tree, get best way of rooting subtree (3 possibilities per, not whole subtree)
+    """
     print('recursive_reroot() begin', end=' ', file=sys.stderr)
     for node in tree.iter_descendants('postorder'):
         if node.is_leaf():
             continue
         print('.', end='', file=sys.stderr)
-        new_node,new_PL = reroot(node,mm0,mm1,base_prior)
+        new_node,new_PL = reroot(node,mm0,mm1,base_prior,DELTA)  #checks if better way to root subtree
         parent = node.up
         parent.remove_child(node)
-        parent.add_child(new_node)
+        parent.add_child(new_node)  #regrafts subtree w new root
         update_PL(tree, mm0, mm1)
-    new_tree,new_PL = reroot(tree, mm0, mm1, base_prior)
+    new_tree,new_PL = reroot(tree, mm0, mm1, base_prior,DELTA)  #check if better way to root whole tree assuming subtrees
     print(' done', end='', file=sys.stderr)
     #print(new_tree)
     #print(new_PL)
+    
     return new_tree,new_PL
 
 
-def nearest_neighbor_interchange(node, mm0, mm1, base_prior):
+def nearest_neighbor_interchange(node, mm0, mm1, base_prior,DELTA):
     '''
+    
+    Return:
+        node
+        np.array(PL)
+        int: flag to indicate nni happened
+    
+    
               /-A              /-A              /-A
            /-|              /-|              /-|
           |   \-B          |   \-C          |   \-D
@@ -899,9 +929,9 @@ def nearest_neighbor_interchange(node, mm0, mm1, base_prior):
     '''
     c1,c2 = node.children
     if c1.is_leaf() and c2.is_leaf():
-        return None,None
+        return None,None,0
     if c1.is_leaf() or c2.is_leaf():
-        return reroot(node, mm0, mm1, base_prior)
+        return reroot(node, mm0, mm1, base_prior),1
 
     #conf0
     node_copy0 = node.copy()
@@ -931,44 +961,55 @@ def nearest_neighbor_interchange(node, mm0, mm1, base_prior):
 
     if PL1 < PL0 * (1-DELTA):
         if PL1 < PL2:
-            return node1,PL1
+            return node1,PL1,1
         else:
-            return node2,PL2
+            return node2,PL2,1
     if PL2 < PL0 * (1-DELTA):
         return node2,PL2
     else:
-        return node0,PL0
+        return node0,PL0,0
 
 
-def recursive_NNI(tree, mm0, mm1, base_prior):
-    #SHOULD DO THIS REPEATEDLY UNTIL OPTIMIZED!!!!!!
+def recursive_NNI(tree, mm0, mm1, base_prior,DELTA):
+    #recursive just means traverse the tree 
     """
     
     Args:
-    
+        tree(Tree)
+        mm0: mutation matrix (np array of float) (non-diagonal set to 0)
+        mm1: mutation matrix (np array of float) (diagonal set to 0)
+        base_prior (np.array): Base prior probs depending on het pl
+
     Returns:
-        Tree
-        
+        Tree (tree)
+        np.array (PL): phred-scaled likelihooods 
     
     """
     print('recursive_NNI() begin', end=' ', file=sys.stderr)
-    #CHECK OPTIMALITY CRITERION AND LOOP THIS
-    for node in tree.traverse('postorder'):
-        if node.is_leaf():
-            continue
-        print('.', end='', file=sys.stderr)
-        node_nni,PL_nni = nearest_neighbor_interchange(node, mm0, mm1, base_prior)
-        if node_nni is None:
-            continue
-        if node.is_root():
-            tree = node_nni
-            PL = PL_nni
-        else:
-            parent = node.up
-            node.detach()
-            parent.add_child(node_nni)
-            update_PL(tree, mm0, mm1)
-            PL = score(tree, base_prior)
+    #goes until can get through tree w/o nni at any node
+    #a la phylip
+    num_nnis=1
+    while(num_nnis>0):
+        num_nnis=0
+        for node in tree.traverse('postorder'):
+            #goes through each node, does nni if better
+            if node.is_leaf():
+                continue
+            print('.', end='', file=sys.stderr)
+            node_nni,PL_nni,nniflag = nearest_neighbor_interchange(node, mm0, mm1, base_prior,DELTA)
+            if node_nni is None:
+                continue
+            if node.is_root():
+                tree = node_nni
+                PL = PL_nni
+            else:
+                parent = node.up
+                node.detach()
+                parent.add_child(node_nni)
+                update_PL(tree, mm0, mm1)
+                PL = score(tree, base_prior)
+            if nniflag==1:
+                num_nnis+=1
     print(' done', file=sys.stderr)
     #print(tree)
     #print(PL)
@@ -1071,6 +1112,10 @@ def make_sub2tstv():
 
 if __name__ == '__main__':
     import argparse
+    
+    GTYPE3 = np.array(('RR','RA','AA'))
+    GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
+    DELTA = 1e-4
 
     parser = argparse.ArgumentParser()
     subp = parser.add_subparsers(metavar='<command>', help='sub-commands')
