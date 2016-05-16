@@ -68,6 +68,7 @@ def read_vcf(filename, evidence=60):
     print(' done', file=sys.stderr)
     return vcffile, variants, ADs, PLs
 
+
 def neighbor_main(args):
     """generate neighbor-joining tree then do recursive NNI and recursive reroot
 
@@ -520,7 +521,13 @@ def make_selection_matrix2(m, t=20):
 
 
 def reroot(tree, mm0, mm1, base_prior,DELTA):
-
+    """
+    
+    return:
+        Tree
+        np.array (PLs)
+        int: flag if rerooted (1) or not (0)
+    """
     '''
               /-A              /-A              /-B
            /-|              /-|              /-|
@@ -531,6 +538,7 @@ def reroot(tree, mm0, mm1, base_prior,DELTA):
 
     best_tree = tree
     best_PL = score(tree, base_prior)
+    flag = 0
 
     for node in tree.iter_descendants('postorder'):
         tree_reroot = tree.copy()
@@ -543,8 +551,9 @@ def reroot(tree, mm0, mm1, base_prior,DELTA):
         if PL_reroot < best_PL * (1-DELTA): #new best tree only if significantly better ie trees could be similar but status quo wins
             best_tree = tree_reroot
             best_PL = PL_reroot
+            flag = 1
             
-    return best_tree,best_PL
+    return best_tree,best_PL,flag
 
 
 def recursive_reroot(tree, mm0, mm1, base_prior,DELTA):
@@ -589,16 +598,23 @@ def nearest_neighbor_interchange(node, mm0, mm1, base_prior,DELTA):
            \/               \/               \/
         reroot()         reroot()         reroot()
     '''
+    
+    flag = 0  #indicates rerooting
     c1,c2 = node.children
+    
+    #children are leaves - don't need to swap anything
     if c1.is_leaf() and c2.is_leaf():
         return None,None,0
+    
+    #one child is a leaf - rerooting will provide all possible combinations - flagged if rerooted
     if c1.is_leaf() or c2.is_leaf():
-        return reroot(node, mm0, mm1, base_prior),1
+        return reroot(node, mm0, mm1, base_prior)
 
-    #conf0
+    #current arrangement (1st tree) - don't swap just reroot
     node_copy0 = node.copy()
-    node0,PL0 = reroot(node_copy0, mm0, mm1, base_prior)
-    #conf1
+    node0,PL0,flag = reroot(node_copy0, mm0, mm1, base_prior)
+    
+    #2nd tree - swap relationships and reroot
     node_copy1 = node.copy()
     c1,c2 = node_copy1.children
     c11,c12 = c1.children
@@ -608,8 +624,9 @@ def nearest_neighbor_interchange(node, mm0, mm1, base_prior,DELTA):
     c1.add_child(c22)
     c2.add_child(c12)
     update_PL(node_copy1, mm0, mm1)
-    node1,PL1 = reroot(node_copy1, mm0, mm1, base_prior)
-    #conf2
+    node1,PL1,flag = reroot(node_copy1, mm0, mm1, base_prior)
+    
+    #3rd tree - swap relationships and reroot
     node_copy2 = node.copy()
     c1,c2 = node_copy2.children
     c11,c12 = c1.children
@@ -619,17 +636,17 @@ def nearest_neighbor_interchange(node, mm0, mm1, base_prior,DELTA):
     c1.add_child(c21)
     c2.add_child(c12)
     update_PL(node_copy2, mm0, mm1)
-    node2,PL2 = reroot(node_copy2, mm0, mm1, base_prior)
+    node2,PL2,flag = reroot(node_copy2, mm0, mm1, base_prior)
 
     if PL1 < PL0 * (1-DELTA):
         if PL1 < PL2:
-            return node1,PL1,1
+            return node1,PL1,1  #return flag 1 if not original tree
         else:
             return node2,PL2,1
     if PL2 < PL0 * (1-DELTA):
-        return node2,PL2
+        return node2,PL2,1
     else:
-        return node0,PL0,0
+        return node0,PL0,flag  #flag depends on whether rerooting required
 
 
 def recursive_NNI(tree, mm0, mm1, base_prior,DELTA):
