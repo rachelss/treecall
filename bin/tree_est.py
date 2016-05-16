@@ -565,12 +565,12 @@ def recursive_reroot(tree, mm0, mm1, base_prior,DELTA):
         if node.is_leaf():
             continue
         print('.', end='', file=sys.stderr)
-        new_node,new_PL = reroot(node,mm0,mm1,base_prior,DELTA)  #checks if better way to root subtree
+        new_node,new_PL,flag = reroot(node,mm0,mm1,base_prior,DELTA)  #checks if better way to root subtree
         parent = node.up
         parent.remove_child(node)
         parent.add_child(new_node)  #regrafts subtree w new root
         update_PL(tree, mm0, mm1)
-    new_tree,new_PL = reroot(tree, mm0, mm1, base_prior,DELTA)  #check if better way to root whole tree assuming subtrees
+    new_tree,new_PL,flag = reroot(tree, mm0, mm1, base_prior,DELTA)  #check if better way to root whole tree assuming subtrees
     print(' done', end='', file=sys.stderr)
     #print(new_tree)
     #print(new_PL)
@@ -661,7 +661,9 @@ def recursive_NNI(tree, mm0, mm1, base_prior,DELTA):
 
     Returns:
         Tree (tree)
-        np.array (PL): phred-scaled likelihooods 
+        np.array (PL): phred-scaled likelihooods
+        
+    tree resulting from each round of nni (working from tips to root) printed to trees_tried.txt
     
     """
     print('recursive_NNI() begin', end=' ', file=sys.stderr)
@@ -681,6 +683,7 @@ def recursive_NNI(tree, mm0, mm1, base_prior,DELTA):
             if node.is_root():
                 tree = node_nni
                 PL = PL_nni
+                print(tree, file='trees_tried.txt')
             else:
                 parent = node.up
                 node.detach()
@@ -689,6 +692,7 @@ def recursive_NNI(tree, mm0, mm1, base_prior,DELTA):
                 PL = score(tree, base_prior)
             if nniflag==1:
                 num_nnis+=1
+        
     print(' done', file=sys.stderr)
     #print(tree)
     #print(PL)
