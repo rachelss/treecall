@@ -107,14 +107,17 @@ def neighbor_main(args):
     tree = populate_tree_PL(tree, PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
     tree = calc_mut_likelihoods(tree, mm0, mm1)  #add PLs w mutation
 
-    print(tree)
-    tree.write(outfile=args.output+'.nj0.nwk', format=5)
-    best_tree,best_PL = recursive_NNI(tree, mm0, mm1, base_prior)
-    print(best_tree)
-    best_tree,best_PL = recursive_reroot(best_tree, mm0, mm1, base_prior)
-    print(best_tree)
-    print('PL_per_site = %.4f' % (best_PL/n_site))
-    best_tree.write(outfile=args.output+'.nj.nwk', format=5)
+    #print(tree)
+    #tree.write(outfile=args.output+'.nj0.nwk', format=5)
+    
+    rerooted = 1
+    while rerooted > 0:
+        best_tree,best_PL = recursive_NNI(tree, mm0, mm1, base_prior)
+        #print(best_tree)
+        best_tree,best_PL,rerooted = recursive_reroot(best_tree, mm0, mm1, base_prior)
+        #print(best_tree)
+        print('PL_per_site = %.4f' % (best_PL/n_site))
+        best_tree.write(outfile=args.output+'.nj.nwk', format=5)
 
 
 def init_star_tree(n):
@@ -584,22 +587,25 @@ def recursive_reroot(tree, mm0, mm1, base_prior,DELTA):
     """
     starting at tips, work up tree, get best way of rooting subtree 
     """
+    flags=[]
     print('recursive_reroot() begin', end=' ', file=sys.stderr)
-    for node in tree.iter_descendants('postorder'):
+    for node in tree.iter_descendants('postorder'):  #go through all nodes including tips but not root
         if node.is_leaf():
             continue
         print('.', end='', file=sys.stderr)
         new_node,new_PL,flag = reroot(node,mm0,mm1,base_prior,DELTA)  #checks if better way to root subtree
+        flags.append(flag)
         parent = node.up
         parent.remove_child(node)
         parent.add_child(new_node)  #regrafts subtree w new root
         tree = update_PL(tree, mm0, mm1)
     new_tree,new_PL,flag = reroot(tree, mm0, mm1, base_prior,DELTA)  #check if better way to root whole tree assuming subtrees
+    flags.append(flag)
     print(' done', end='', file=sys.stderr)
     #print(new_tree)
     #print(new_PL)
     
-    return new_tree,new_PL
+    return new_tree,new_PL,sum(flags)
 
 
 def nearest_neighbor_interchange(node, mm0, mm1, base_prior,DELTA):
