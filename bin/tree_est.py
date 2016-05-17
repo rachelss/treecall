@@ -103,9 +103,9 @@ def neighbor_main(args):
     internals = np.arange(n_smpl)
     tree = neighbor_joining(D, tree, internals) #haven't checked this 
 
-    tree = init_tree(tree) 
-    tree = populate_tree_PL(tree, PLs, mm0, 'PL0')
-    tree = calc_mut_likelihoods(tree, mm0, mm1)
+    tree = init_tree(tree)  #tree has nid's (node id) and sid's (list of children - sorted)
+    tree = populate_tree_PL(tree, PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
+    tree = calc_mut_likelihoods(tree, mm0, mm1)  #add PLs w mutation
 
     print(tree)
     tree.write(outfile=args.output+'.nj0.nwk', format=5)
@@ -314,6 +314,17 @@ def make_base_prior(het, gtypes):
 
 
 def calc_mut_likelihoods(tree, mm0, mm1):
+    """
+    go through tree from leaves to root - attach PLm to each node
+    
+    Args:
+        tree (Tree)
+        mm0: mutation matrix (np array of float) (non-diagonal set to 0)
+        mm1: mutation matrix (np array of float) (diagonal set to 0)
+        
+    Returns:
+        Tree (w annotated nodes)
+    """
     n,g = tree.PL0.shape
     for node in tree.traverse(strategy='postorder'):
         if not node.is_leaf():
@@ -335,8 +346,15 @@ def calc_mut_likelihoods(tree, mm0, mm1):
 def update_PL(node, mm0, mm1):
     """
     PL for nodes depend on children so must be updated if node children change due to nni/reroot
+    
+    node has
+        PL0: PLs given no mutation
+        PLm: w mutation
+        children
+        
+    changes PLm and PL0 for node and all its children (recursive); also sid for children
     """
-    #fix this so it returns something and doesn't try to use a global variable
+
     n,g = node.PL0.shape
     l = 2*len(node)-2
     #node.PL0 = np.zeros((n,g), dtype=np.longdouble)
@@ -344,8 +362,9 @@ def update_PL(node, mm0, mm1):
     node.PLm = np.zeros((l,n,g), dtype=np.longdouble)
     for child in node.children:
         sid = sorted(map(int,child.get_leaf_names()))
-        if child.sid != sid:
-            update_PL(child, mm0, mm1)
+        if child.sid != sid:  #sid is supposed to be names of leaves - could be dif due to swapping in nni
+            newchild = update_PL(child, mm0, mm1)
+              
             child.sid = sid
         node.PL0 += p2phred(np.dot(phred2p(child.PL0), mm0)) 
     i = 0
@@ -358,6 +377,7 @@ def update_PL(node, mm0, mm1):
         node.PLm[i] = p2phred(np.dot(phred2p(child.PL0), mm1)) + p2phred(np.dot(phred2p(sister.PL0), mm0)) 
         i += 1
 
+    return node
 
 def populate_tree_PL(tree, PLs, mm, attr): #e.g. populate_tree_PL(tree, PLs, mm0, 'PL0')
     """
@@ -393,7 +413,7 @@ def score(tree, base_prior):
 
 
 def annotate_nodes(tree, attr, values):
-    #fix this so it returns something and doesn't try to use a global variable
+
     for node in tree.iter_descendants('postorder'):
         setattr(node, attr, values[node.nid])
 
@@ -544,7 +564,7 @@ def reroot(tree, mm0, mm1, base_prior,DELTA):
         tree_reroot = tree.copy()
         new_root = tree_reroot.search_nodes(sid=node.sid)[0]  #gets node of interest
         tree_reroot.set_outgroup(new_root)  #sets node of interest to outgroup
-        update_PL(tree_reroot, mm0, mm1)  #new PL given decendants
+        tree_reroot = update_PL(tree_reroot, mm0, mm1)  #new PL given decendants
         PL_reroot = score(tree_reroot, base_prior) 
         #print(tree_reroot)
         #print(PL_reroot)
@@ -569,7 +589,7 @@ def recursive_reroot(tree, mm0, mm1, base_prior,DELTA):
         parent = node.up
         parent.remove_child(node)
         parent.add_child(new_node)  #regrafts subtree w new root
-        update_PL(tree, mm0, mm1)
+        tree = update_PL(tree, mm0, mm1)
     new_tree,new_PL,flag = reroot(tree, mm0, mm1, base_prior,DELTA)  #check if better way to root whole tree assuming subtrees
     print(' done', end='', file=sys.stderr)
     #print(new_tree)
@@ -599,7 +619,6 @@ def nearest_neighbor_interchange(node, mm0, mm1, base_prior,DELTA):
         reroot()         reroot()         reroot()
     '''
     
-    flag = 0  #indicates rerooting
     c1,c2 = node.children
     
     #children are leaves - don't need to swap anything
@@ -612,7 +631,7 @@ def nearest_neighbor_interchange(node, mm0, mm1, base_prior,DELTA):
 
     #current arrangement (1st tree) - don't swap just reroot
     node_copy0 = node.copy()
-    node0,PL0,flag = reroot(node_copy0, mm0, mm1, base_prior)
+    node0,PL0,flag0 = reroot(node_copy0, mm0, mm1, base_prior)
     
     #2nd tree - swap relationships and reroot
     node_copy1 = node.copy()
@@ -623,8 +642,8 @@ def nearest_neighbor_interchange(node, mm0, mm1, base_prior,DELTA):
     c22 = c22.detach()
     c1.add_child(c22)
     c2.add_child(c12)
-    update_PL(node_copy1, mm0, mm1)
-    node1,PL1,flag = reroot(node_copy1, mm0, mm1, base_prior)
+    node_copy1 = update_PL(node_copy1, mm0, mm1)
+    node1,PL1,flag1 = reroot(node_copy1, mm0, mm1, base_prior)
     
     #3rd tree - swap relationships and reroot
     node_copy2 = node.copy()
@@ -635,8 +654,8 @@ def nearest_neighbor_interchange(node, mm0, mm1, base_prior,DELTA):
     c21 = c21.detach()
     c1.add_child(c21)
     c2.add_child(c12)
-    update_PL(node_copy2, mm0, mm1)
-    node2,PL2,flag = reroot(node_copy2, mm0, mm1, base_prior)
+    node_copy2 = update_PL(node_copy2, mm0, mm1)
+    node2,PL2,flag2 = reroot(node_copy2, mm0, mm1, base_prior)
 
     if PL1 < PL0 * (1-DELTA):
         if PL1 < PL2:
@@ -646,7 +665,7 @@ def nearest_neighbor_interchange(node, mm0, mm1, base_prior,DELTA):
     if PL2 < PL0 * (1-DELTA):
         return node2,PL2,1
     else:
-        return node0,PL0,flag  #flag depends on whether rerooting required
+        return node0,PL0,flag0  #flag depends on whether rerooting required
 
 
 def recursive_NNI(tree, mm0, mm1, base_prior,DELTA):
@@ -688,7 +707,7 @@ def recursive_NNI(tree, mm0, mm1, base_prior,DELTA):
                 parent = node.up
                 node.detach()
                 parent.add_child(node_nni)
-                update_PL(tree, mm0, mm1)
+                tree = update_PL(tree, mm0, mm1)  #this is changing PL0 and PLm and sid for whole tree, all nodes recursively
                 PL = score(tree, base_prior)
             if nniflag==1:
                 num_nnis+=1
