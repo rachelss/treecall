@@ -353,6 +353,9 @@ def update_PL(node, mm0, mm1):
         children
         
     changes PLm and PL0 for node and all its children (recursive); also sid for children
+    
+    returns:
+        Tree: could be subtree; includes all recursively updated PL0 and PLm and node labels (sid)
     """
 
     n,g = node.PL0.shape
@@ -364,8 +367,9 @@ def update_PL(node, mm0, mm1):
         sid = sorted(map(int,child.get_leaf_names()))
         if child.sid != sid:  #sid is supposed to be names of leaves - could be dif due to swapping in nni
             newchild = update_PL(child, mm0, mm1)
-              
-            child.sid = sid
+            newchild.sid = sid
+            child.detach()
+            node.add_child(newchild)
         node.PL0 += p2phred(np.dot(phred2p(child.PL0), mm0)) 
     i = 0
     for child in node.children:
@@ -560,7 +564,7 @@ def reroot(tree, mm0, mm1, base_prior,DELTA):
     best_PL = score(tree, base_prior)
     flag = 0
 
-    for node in tree.iter_descendants('postorder'):
+    for node in tree.iter_descendants('postorder'):  #go through all nodes including tips but not root
         tree_reroot = tree.copy()
         new_root = tree_reroot.search_nodes(sid=node.sid)[0]  #gets node of interest
         tree_reroot.set_outgroup(new_root)  #sets node of interest to outgroup
@@ -578,7 +582,7 @@ def reroot(tree, mm0, mm1, base_prior,DELTA):
 
 def recursive_reroot(tree, mm0, mm1, base_prior,DELTA):
     """
-    starting at tips, work up tree, get best way of rooting subtree (3 possibilities per, not whole subtree)
+    starting at tips, work up tree, get best way of rooting subtree 
     """
     print('recursive_reroot() begin', end=' ', file=sys.stderr)
     for node in tree.iter_descendants('postorder'):
