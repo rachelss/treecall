@@ -741,12 +741,15 @@ def nearest_neighbor_interchange(node, PLs,mm0, mm1, base_prior,DELTA):
     if PL1 < PL0 * (1-DELTA):
         if PL2 < PL1:
             print('PL2')
+            print(node2)
             return node2,PL2,1  #return flag 1 if not original tree
         else:
             print('PL1')
+            print(node1)
             return node1,PL1,1
     if PL2 < PL0 * (1-DELTA):
         print('PL2')
+        print(node2)
         return node2,PL2,1
     else:
         print('PL0')
@@ -771,11 +774,12 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
     
     """
     print('recursive_NNI() begin', end=' ', file=sys.stderr)
-    print(score(tree, base_prior))
+    PL = score(tree, base_prior)
     #goes until can get through tree w/o nni at any node
     #a la phylip
     num_nnis=1
     print(tree)
+    print(PL)
     while(num_nnis>0):
         num_nnis=0
         for node in tree.traverse('postorder'):
@@ -795,8 +799,10 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
                 tree = calc_mut_likelihoods(tree, mm0, mm1)  #add PLs w mutation
                 
                 #PL = PL_nni
-                PL = score(tree, base_prior)
+                PL_new = score(tree, base_prior)
+                assert(PL_new < PL)
                 print(tree)
+                PL = PL_new
             else:
                 if nniflag==1:
                     parent = node.up
@@ -806,18 +812,20 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
                     tree = populate_tree_PL(tree, PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
                     tree = calc_mut_likelihoods(tree, mm0, mm1)  #add PLs w mutation
                     #tree = update_PL(tree, mm0, mm1)  #this is changing PL0 and PLm and sid for whole tree, all nodes recursively
-                    PL = score(tree, base_prior)
-            
-                    num_nnis+=1
+                    PL_new = score(tree, base_prior)
                     print(tree)
-                    print(PL)
+                    print(PL_new)
+                    assert PL_new < PL, 'Old score: '+str(PL)+' New score: '+str(PL_new)
+            
+                    num_nnis+=1                    
+                    PL = PL_new
         print(str(num_nnis)+' nnis', end='', file=sys.stderr)
-        print(PL)
+        print(PL_new)
         
     print(' done', file=sys.stderr)
     #print(tree)
     #print(PL)
-    return tree,PL
+    return tree,PL_new
 
 if __name__ == '__main__':
     import argparse
