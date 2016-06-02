@@ -125,27 +125,38 @@ def neighbor_main(args):
     n_site,n_smpl,n_gtype = PLs.shape
 
     D = make_D(PLs)  # pairwise differences between samples based only on PLs (should include mutation, but also shouldn't matter)
-    tree = init_star_tree(n_smpl)
-    internals = np.arange(n_smpl)
-    D,tree = neighbor_joining(D.copy(), tree.copy(), internals) #haven't checked this; make nj tree and update D given internal nodes; pass copy
-
-
-    tree = init_tree(tree.copy())  #tree has nid's (node id) and sid's (list of tip names - sorted)
-    tree = populate_tree_PL(tree.copy(), PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
-    tree = calc_mut_likelihoods(tree.copy(), mm0, mm1)  #add PLs w mutation
+    allscores = []
+    for i in range(10):  #10 different starting trees
+        tree = init_star_tree(n_smpl)
+        internals = np.arange(n_smpl)
+        
+        #1st tree is nj tree (tho with raw scores not adjusted for saturation)
+        if i==0:
+            D,tree = neighbor_joining(D.copy(), tree.copy(), internals) #haven't checked this; make nj tree and update D given internal nodes; pass copy
+        #all other trees are semi-random
+        else:
+            tree.set_outgroup(str(i))
+            tree.resolve_polytomy()
     
-    tree.write(outfile=args.output+'.nj0.nwk', format=5)
+        tree = init_tree(tree.copy())  #tree has nid's (node id) and sid's (list of tip names - sorted)
+        tree = populate_tree_PL(tree.copy(), PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
+        tree = calc_mut_likelihoods(tree.copy(), mm0, mm1)  #add PLs w mutation
+        
+        tree.write(outfile=args.output+'.nj0.tre', format=5)
+        
+        rerooted = 1
+        while rerooted > 0:
+            best_tree,best_PL = recursive_NNI(tree.copy(), PLs, mm0, mm1, base_prior,DELTA)
+            #print(best_tree)
+            best_tree,best_PL,rerooted = recursive_reroot(best_tree.copy(), PLs,mm0, mm1, base_prior,DELTA)
+            #print(best_tree)
+            print('PL_per_site = %.4f' % (best_PL/n_site))
+            best_tree.write(outfile=args.output+'.nj.'+str(i)+'.tre', format=5)
+            allscores.append(best_PL)
+        i+=1
     
-    rerooted = 1
-    while rerooted > 0:
-        best_tree,best_PL = recursive_NNI(tree.copy(), PLs, mm0, mm1, base_prior,DELTA)
-        #print(best_tree)
-        best_tree,best_PL,rerooted = recursive_reroot(best_tree.copy(), PLs,mm0, mm1, base_prior,DELTA)
-        #print(best_tree)
-        print('PL_per_site = %.4f' % (best_PL/n_site))
-        best_tree.write(outfile=args.output+'.nj.nwk', format=5)
-
-
+    print(allscores)
+    
 def init_star_tree(n):
     """Creates a tree, adds n children in star with numbers as names
 
