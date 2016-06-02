@@ -355,7 +355,6 @@ def make_mut_matrix_gtype3(mu):
     """same as above assuming gtype3 and w correct string distance for double mutation"""
     
     pmu = phred2p(mu)
-    pmu = phred2p(mu)
     nmu = 1-pmu
 
     mm = np.array([[nmu**2, (2*pmu*nmu), (pmu*pmu)],
@@ -366,8 +365,6 @@ def make_mut_matrix_gtype3(mu):
     mm1 = mm - mm0 # substitution rate matrix with diagonal set to 0
     
     return mm,mm0,mm1
-    
-    return 
 
 def make_base_prior(het, gtypes):
     """Base prior probs
