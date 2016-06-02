@@ -119,7 +119,7 @@ def neighbor_main(args):
     
     GTYPE3 = np.array(('RR','RA','AA'))
     base_prior = make_base_prior(args.het, GTYPE3) # base genotype prior; heterozygous rate in Phred scale, default 30; e.g. for het=30 [ 3.0124709,  33.012471,  3.0124709]
-    mm,mm0,mm1 = make_mut_matrix(args.mu, GTYPE3) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
+    mm,mm0,mm1 = make_mut_matrix_gtype3(args.mu) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
 
     PLs = PLs.astype(np.longdouble)
     n_site,n_smpl,n_gtype = PLs.shape
