@@ -148,7 +148,7 @@ def neighbor_main(args):
         while rerooted > 0:
             best_tree,best_PL = recursive_NNI(tree.copy(), PLs, mm0, mm1, base_prior,DELTA)
             #print(best_tree)
-            best_tree,best_PL,rerooted = recursive_reroot(best_tree.copy(), PLs,mm0, mm1, base_prior,DELTA)
+            best_tree,best_PL,rerooted = recursive_reroot(best_tree.copy(), PLs,mm0, mm1, base_prior,DELTA)  #why are brlens negative?
             #print(best_tree)
             print('PL_per_site = %.4f' % (best_PL/n_site))
             best_tree.write(outfile=args.output+'.nj.'+str(i)+'.tre', format=5)
@@ -351,6 +351,23 @@ def make_mut_matrix(mu, gtypes):
     
     return mm,mm0,mm1
 
+def make_mut_matrix_gtype3(mu):
+    """same as above assuming gtype3 and w correct string distance for double mutation"""
+    
+    pmu = phred2p(mu)
+    pmu = phred2p(mu)
+    nmu = 1-pmu
+
+    mm = np.array([[nmu**2, (2*pmu*nmu), (pmu*pmu)],
+              [(nmu*pmu), (pmu**2)+(nmu**2), (nmu*pmu)], 
+              [pmu*pmu, 2*pmu*nmu, (1-pmu)**2]])    
+    
+    mm0 = np.diagflat(mm.diagonal()) # substitution rate matrix with non-diagonal set to 0
+    mm1 = mm - mm0 # substitution rate matrix with diagonal set to 0
+    
+    return mm,mm0,mm1
+    
+    return 
 
 def make_base_prior(het, gtypes):
     """Base prior probs
@@ -369,7 +386,6 @@ def make_base_prior(het, gtypes):
     
     """
     return normalize_PL(np.array([g[0]!=g[1] for g in gtypes], dtype=np.longdouble)*het)
-
 
 def calc_mut_likelihoods(tree, mm0, mm1):
     """
