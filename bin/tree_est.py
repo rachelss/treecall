@@ -127,20 +127,20 @@ def neighbor_main(args):
     D = make_D(PLs)  # pairwise differences between samples based only on PLs (should include mutation, but also shouldn't matter)
     tree = init_star_tree(n_smpl)
     internals = np.arange(n_smpl)
-    D,tree = neighbor_joining(D.copy(), tree, internals) #haven't checked this; make nj tree and update D given internal nodes; pass copy
+    D,tree = neighbor_joining(D.copy(), tree.copy(), internals) #haven't checked this; make nj tree and update D given internal nodes; pass copy
 
 
-    tree = init_tree(tree)  #tree has nid's (node id) and sid's (list of tip names - sorted)
-    tree = populate_tree_PL(tree, PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
-    tree = calc_mut_likelihoods(tree, mm0, mm1)  #add PLs w mutation
+    tree = init_tree(tree.copy())  #tree has nid's (node id) and sid's (list of tip names - sorted)
+    tree = populate_tree_PL(tree.copy(), PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
+    tree = calc_mut_likelihoods(tree.copy(), mm0, mm1)  #add PLs w mutation
     
     tree.write(outfile=args.output+'.nj0.nwk', format=5)
     
     rerooted = 1
     while rerooted > 0:
-        best_tree,best_PL = recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA)
+        best_tree,best_PL = recursive_NNI(tree.copy(), PLs, mm0, mm1, base_prior,DELTA)
         #print(best_tree)
-        best_tree,best_PL,rerooted = recursive_reroot(best_tree, PLs,mm0, mm1, base_prior,DELTA)
+        best_tree,best_PL,rerooted = recursive_reroot(best_tree.copy(), PLs,mm0, mm1, base_prior,DELTA)
         #print(best_tree)
         print('PL_per_site = %.4f' % (best_PL/n_site))
         best_tree.write(outfile=args.output+'.nj.nwk', format=5)
@@ -440,7 +440,8 @@ def populate_tree_PL(tree, PLs, mm, attr): #e.g. populate_tree_PL(tree, PLs, mm0
         attr: attribute to be set e.g. PL0
     
     Returns:
-        Tree: now has PLs attached to nodes
+        Tree: now has matrix attached to nodes
+            PLs for all vars for this leaf or dot product of child's matrix and mutation matrix
     """
     n,m,g = PLs.shape # n sites, m samples, g gtypes
     for node in tree.traverse(strategy='postorder'):
@@ -455,7 +456,14 @@ def populate_tree_PL(tree, PLs, mm, attr): #e.g. populate_tree_PL(tree, PLs, mm0
 
 def score(tree, base_prior):
     """
-    used to compare rootings of tree
+    used to compare trees
+    
+    Args:
+        Tree
+            PL0: PLs for all vars for leaf or dot product of child's matrix and mutation matrix
+                where mm0: substitution rate matrix with non-diagonal set to 0
+            PLm:
+                    mm1: substitution rate matrix with diagonal set to 0
     
     """
     Pm = phred2p(tree.PLm+base_prior).sum(axis=(0,2))       #why add baseprior
@@ -636,30 +644,52 @@ def recursive_reroot(tree, PLs,mm0, mm1, base_prior,DELTA):
     """
     starting at tips, work up tree, get best way of rooting subtree 
     """
-    flags=[]
-    print('recursive_reroot() begin', end=' ', file=sys.stderr)
+
+    print('recursive_reroot() begin', file=sys.stderr)
+    PL = score(tree, base_prior)
     for node in tree.iter_descendants('postorder'):  #go through all nodes including tips but not root
-        if node.is_leaf():
-            continue
-        print('.', end='', file=sys.stderr)
-        new_node,new_PL,flag = reroot(node,PLs,mm0,mm1,base_prior,DELTA)  #checks if better way to root subtree
-        flags.append(flag)
-        parent = node.up
-        parent.remove_child(node)
-        parent.add_child(new_node)  #regrafts subtree w new root
-        
-        tree = init_tree(tree)  #tree has nid's (node id) and sid's (list of tip names - sorted)
-        tree = populate_tree_PL(tree, PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
-        tree = calc_mut_likelihoods(tree, mm0, mm1)  #add PLs w mutation
-        
-        #tree = update_PL(tree, mm0, mm1)
-    new_tree,new_PL,flag = reroot(tree, PLs,mm0, mm1, base_prior,DELTA)  #check if better way to root whole tree assuming subtrees
-    flags.append(flag)
-    print(' done', end='', file=sys.stderr)
-    print(new_tree)
-    print(new_PL)
+        rerooted = 0
+        new_tree = tree.copy()
+        node_leaves = node.get_leaf_names()
+        new_node = new_tree.get_common_ancestor(node_leaves)  #get corresponding node in new tree
+        try:
+            print('Node:')
+            print(node)
+            new_tree.set_outgroup(new_node) #reroot
     
-    return new_tree,new_PL,sum(flags)
+            #recalculate
+            new_tree = init_tree(new_tree.copy())  #tree has nid's (node id) and sid's (list of tip names - sorted)
+            new_tree = populate_tree_PL(new_tree.copy(), PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
+            new_tree = calc_mut_likelihoods(new_tree.copy(), mm0, mm1)  #add PLs w mutation
+                   
+            PL_new = score(new_tree, base_prior)
+            
+            print('This tree:')
+            print(new_tree)
+            print('Has this score:')
+            print(PL_new)
+    
+            if PL_new < (PL-DELTA): #should this be multiplied or subtracted?
+                best_tree = new_tree.copy()
+                PL = PL_new
+                rerooted = 1
+        except:
+            print('Can\'t set node as outgroup:')
+            print(node)
+            
+    if rerooted == 1:  #there was a better tree
+        tree = best_tree.copy()
+        print('Best tree:')
+        print(tree)
+    else:                        
+        print('No change to tree:')
+        print(tree)
+        print(PL)
+        
+    print(' done', end='', file=sys.stderr)
+    print(tree)
+    print(PL)
+    return tree,PL,rerooted
 
 
 def nearest_neighbor_interchange(node, PLs,mm0, mm1, base_prior,DELTA):
@@ -686,74 +716,70 @@ def nearest_neighbor_interchange(node, PLs,mm0, mm1, base_prior,DELTA):
     '''
     
     c1,c2 = node.children  #children of root node
+    possible_rearrangements = []
     
     #children are leaves - don't need to swap anything
     if c1.is_leaf() and c2.is_leaf():
-        return None,None,0
+        return [None]
     
     #one child is a leaf - rerooting will provide all possible combinations - flagged if rerooted
-    if c1.is_leaf() or c2.is_leaf():
-        print(score(node,base_prior))
-        node_r,PL_r,flag_r = reroot(node, PLs,mm0, mm1, base_prior,DELTA)
-        print(PL_r)
-        print(node_r)
-        return node_r,PL_r,flag_r
+    elif c1.is_leaf():
+        c21,c22 = c2.children
+        node.set_outgroup(c22)
+        possible_rearrangements.append(node.copy())
+        node.set_outgroup(c21)
+        possible_rearrangements.append(node.copy())
+        return possible_rearrangements
+        
+    elif c2.is_leaf():
+        c12,c11 = c1.children
+        node.set_outgroup(c12)
+        possible_rearrangements.append(node.copy())
+        node.set_outgroup(c11)
+        possible_rearrangements.append(node.copy())
+        return possible_rearrangements
 
-    #current arrangement (1st tree) - don't swap just reroot
-    node_copy0 = node.copy()
-    node0,PL0,flag0 = reroot(node_copy0, PLs,mm0, mm1, base_prior,DELTA)
-    
-    #2nd tree - swap relationships and reroot
-    node_copy1 = node.copy()
-    c1,c2 = node_copy1.children
-    c11,c12 = c1.children
-    c21,c22 = c2.children
-    c12 = c12.detach()
-    c22 = c22.detach()
-    c1.add_child(c22)
-    c2.add_child(c12)
-    
-    node_copy1 = init_tree(node_copy1)  #tree has nid's (node id) and sid's (list of tip names - sorted)
-    node_copy1 = populate_tree_PL(node_copy1, PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
-    node_copy1 = calc_mut_likelihoods(node_copy1, mm0, mm1)  #add PLs w mutation
-    
-    #node_copy1 = update_PL(node_copy1, mm0, mm1)
-    node1,PL1,flag1 = reroot(node_copy1, PLs,mm0, mm1, base_prior,DELTA)
-    
-    #3rd tree - swap relationships and reroot
-    node_copy2 = node.copy()
-    c1,c2 = node_copy2.children
-    c11,c12 = c1.children
-    c21,c22 = c2.children
-    c12 = c12.detach()
-    c21 = c21.detach()
-    c1.add_child(c21)
-    c2.add_child(c12)
-    
-    node_copy2 = init_tree(node_copy2)  #tree has nid's (node id) and sid's (list of tip names - sorted)
-    node_copy2 = populate_tree_PL(node_copy2, PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
-    node_copy2 = calc_mut_likelihoods(node_copy2, mm0, mm1)  #add PLs w mutation
-    
-    #node_copy2 = update_PL(node_copy2, mm0, mm1)
-    node2,PL2,flag2 = reroot(node_copy2, PLs,mm0, mm1, base_prior,DELTA)
-    print(PL0,PL1,PL2,)
-
-    if PL1 < PL0 * (1-DELTA):
-        if PL2 < PL1:
-            print('PL2')
-            print(node2)
-            return node2,PL2,1  #return flag 1 if not original tree
-        else:
-            print('PL1')
-            print(node1)
-            return node1,PL1,1
-    if PL2 < PL0 * (1-DELTA):
-        print('PL2')
-        print(node2)
-        return node2,PL2,1
     else:
-        print('PL0')
-        return node0,PL0,flag0  #flag depends on whether rerooting required
+        #rerootings of original tree
+        node_copy1 = node.copy()
+        c1,c2 = node_copy1.children
+        c11,c12 = c1.children
+        c21,c22 = c2.children
+        for n in [c11,c12,c21,c22]:
+            node_copy1.set_outgroup(n)
+            possible_rearrangements.append(node_copy1.copy())
+
+        #2nd tree - swap relationships and reroot
+        node_copy2 = node.copy()
+        c1,c2 = node_copy2.children
+        c11,c12 = c1.children
+        c21,c22 = c2.children
+        c12 = c12.detach()
+        c22 = c22.detach()
+        c1.add_child(c22)
+        c2.add_child(c12)
+        
+        possible_rearrangements.append(node_copy2.copy())
+        for n in [c11,c12,c21,c22]:
+            node_copy2.set_outgroup(n)
+            possible_rearrangements.append(node_copy2.copy())
+            
+        #3rd tree - swap relationships and reroot
+        node_copy3 = node.copy()
+        c1,c2 = node_copy3.children
+        c11,c12 = c1.children
+        c21,c22 = c2.children
+        c12 = c12.detach()
+        c21 = c21.detach()
+        c1.add_child(c21)
+        c2.add_child(c12)
+        
+        possible_rearrangements.append(node_copy3.copy())
+        for n in [c11,c12,c21,c22]:
+            node_copy3.set_outgroup(n)
+            possible_rearrangements.append(node_copy3.copy())
+
+        return possible_rearrangements
 
 
 def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
@@ -782,49 +808,98 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
     print(PL)
     while(num_nnis>0):
         num_nnis=0
+        print('Start nni round')
+#        for node in tree.traverse('postorder'):
+#            print(node)
         for node in tree.traverse('postorder'):
             #goes through each node, does nni if better
             if node.is_leaf():
                 continue
             print('.', end='', file=sys.stderr)
             print(node)
-            node_nni,PL_nni,nniflag = nearest_neighbor_interchange(node,PLs, mm0, mm1, base_prior,DELTA)
-            if node_nni is None:
-                continue
-            if node.is_root():
-                tree = node_nni
-                
-                tree = init_tree(tree)  #tree has nid's (node id) and sid's (list of tip names - sorted)
-                tree = populate_tree_PL(tree, PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
-                tree = calc_mut_likelihoods(tree, mm0, mm1)  #add PLs w mutation
-                
-                #PL = PL_nni
-                PL_new = score(tree, base_prior)
-                assert(PL_new < PL)
-                print(tree)
-                PL = PL_new
-            else:
-                if nniflag==1:
-                    parent = node.up
-                    node.detach()
-                    parent.add_child(node_nni)
-                    tree = init_tree(tree)  #tree has nid's (node id) and sid's (list of tip names - sorted)
-                    tree = populate_tree_PL(tree, PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
-                    tree = calc_mut_likelihoods(tree, mm0, mm1)  #add PLs w mutation
-                    #tree = update_PL(tree, mm0, mm1)  #this is changing PL0 and PLm and sid for whole tree, all nodes recursively
-                    PL_new = score(tree, base_prior)
-                    print(tree)
-                    print(PL_new)
-                    assert PL_new < PL, 'Old score: '+str(PL)+' New score: '+str(PL_new)
-            
-                    num_nnis+=1                    
-                    PL = PL_new
-        print(str(num_nnis)+' nnis', end='', file=sys.stderr)
-        print(PL_new)
+            possible_rearrangements = nearest_neighbor_interchange(node.copy(),PLs, mm0, mm1, base_prior,DELTA)
+#            print('Original original tree:')
+#            print(tree)
+            if possible_rearrangements[0] is not None:
+#                for r in possible_rearrangements:
+#                    print(r)
+                if node.is_root():  #because can't get parent as for below
+                    for r in possible_rearrangements:
+                        print('Rearranged node:')
+                        print(r)
+                        
+                        new_tree = init_tree(r.copy())  #tree has nid's (node id) and sid's (list of tip names - sorted)
+                        new_tree = populate_tree_PL(new_tree, PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
+                        new_tree = calc_mut_likelihoods(new_tree, mm0, mm1)  #add PLs w mutation
+
+                        PL_new = score(new_tree, base_prior)
+                        
+                        print('This tree:')
+                        print(new_tree)
+                        print('Has this score:')
+                        print(PL_new)
+
+                        if PL_new < (PL-DELTA): #should this be multiplied or subtracted?
+                            best_tree = new_tree.copy()
+                            print(best_tree)
+                            PL = PL_new
+                            num_nnis = 1
+                    if num_nnis == 1:  #there was a better tree
+                        tree = best_tree.copy()
+                        print('Best tree so far:')
+                        print(tree)
+                    else:                        
+                        print('No change to tree:')
+                        print(tree)
+                        print(PL)
+
+                else:
+                    for r in possible_rearrangements:
+                        print('Rearranged node:')
+                        print(r)
+                        new_tree = tree.copy()
+                        node_leaves = node.get_leaf_names()
+                        new_node = new_tree.get_common_ancestor(node_leaves)  #get corresponding node in new tree
+                        
+                        parent = new_node.up
+                        new_node.detach()
+                        parent.add_child(r)
+                        
+                        #modify copy of tree
+                        new_tree = init_tree(new_tree)  #tree has nid's (node id) and sid's (list of tip names - sorted)
+                        new_tree = populate_tree_PL(new_tree, PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
+                        new_tree = calc_mut_likelihoods(new_tree, mm0, mm1)  #add PLs w mutation
+                        
+                        PL_new = score(new_tree, base_prior)
+                                                
+                        print('This tree:')
+                        print(new_tree)
+                        print('Has this score:')
+                        print(PL_new)
+                        
+                        if PL_new < (PL-DELTA): #should this be multiplied or subtracted?
+                            PL = PL_new
+                            num_nnis = 1
+                            best_tree = new_tree.copy()
+#                        print('Original tree:')
+#                        print(tree)
+
+                    if num_nnis == 1:  #there was a better tree
+                        tree = best_tree.copy()
+                        print('Best tree so far:')
+                        print(tree)
+                        break  #take best tree and start over because now nni's will be all different
+                    else:                        
+                        print('No change to tree:')
+                        print(tree)
+                        print(PL)
+                    
+        #print(str(num_nnis)+' nnis', end='', file=sys.stderr)
+        #print(PL)
         
     print(' done', file=sys.stderr)
-    #print(tree)
-    #print(PL)
+    print(tree)
+    print(PL)
     return tree,PL_new
 
 if __name__ == '__main__':
