@@ -59,23 +59,24 @@ def read_vcf(filename, evidence=60):
         ))
     
     for v in vcffile:
-        if v.ALT[0] in bases:
-            variants.append((v.CHROM,v.POS,v.REF))
-            
-            #ad for each sample for each allele
-            ad = np.array([v.genotype(s).data.AD for s in vcffile.samples], dtype=np.uint16) 
-            #triallelic the PL pattern is RR,RA1,A1A1,RA2,A1A2,A2A2 
-            pl = np.array([v.genotype(s).data.PL for s in vcffile.samples], dtype=np.uint16) #list of PL-as-int in array
-            
-            #ak = columns of two most common alleles ordered by freq
-            #sum ad across samples; order by decreasing depth, take only the two most common alleles
-            ak = ad.sum(axis=0).argsort(kind='mergesort')[-2:][::-1]   
-            #append ad ordered by freq NOT ref,alt
-            ADs.append(ad[...,ak])  
-            
-            #get genotypes' PLs in order of allele freq across samples
-            gk = a2g[ak[0],ak[1]]
-            PLs.append(pl[...,gk])
+        if v.is_snp():
+            if v.ALT[0] in bases:
+                variants.append((v.CHROM,v.POS,v.REF))
+                
+                #ad for each sample for each allele
+                ad = np.array([v.genotype(s).data.AD for s in vcffile.samples], dtype=np.uint16) 
+                #triallelic the PL pattern is RR,RA1,A1A1,RA2,A1A2,A2A2 
+                pl = np.array([v.genotype(s).data.PL for s in vcffile.samples], dtype=np.uint16) #list of PL-as-int in array
+                
+                #ak = columns of two most common alleles ordered by freq
+                #sum ad across samples; order by decreasing depth, take only the two most common alleles
+                ak = ad.sum(axis=0).argsort(kind='mergesort')[-2:][::-1]   
+                #append ad ordered by freq NOT ref,alt
+                ADs.append(ad[...,ak])  
+                
+                #get genotypes' PLs in order of allele freq across samples
+                gk = a2g[ak[0],ak[1]]
+                PLs.append(pl[...,gk])
     
     variants = np.array(variants)
     ADs = np.array(ADs)
