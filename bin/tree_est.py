@@ -127,13 +127,24 @@ def neighbor_main(args):
 
     D = make_D(PLs)  # pairwise differences between samples based only on PLs (should include mutation, but also shouldn't matter)
     allscores = []
-    for i in range(10):  #10 different starting trees
+    for i in range(n_smpl+2):  #10 different starting trees
         tree = init_star_tree(n_smpl)
         internals = np.arange(n_smpl)
         
-        #1st tree is nj tree (tho with raw scores not adjusted for saturation)
-        if i==0:
+        #2nd to last tree is nj tree (tho with raw scores not adjusted for saturation)
+        if i == n_smpl:
             D,tree = neighbor_joining(D.copy(), tree.copy(), internals) #haven't checked this; make nj tree and update D given internal nodes; pass copy
+            
+        #last tree is partition tree
+        elif i == n_smpl+1:
+            tree = Tree()
+            #sem calculates the standard error of the mean
+            #check if sem for col 1
+            if sem(PLs[...,1],axis=1).mean() > sem(PLs[...,2],axis=1).mean():  
+                partition(PLs[...,0:2], tree, np.arange(n_smpl), args.min_ev)
+            else:
+                partition(PLs, tree, np.arange(n_smpl), args.min_ev)
+            
         #all other trees are semi-random
         else:
             tree.set_outgroup(str(i))
@@ -143,7 +154,7 @@ def neighbor_main(args):
         tree = populate_tree_PL(tree.copy(), PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
         tree = calc_mut_likelihoods(tree.copy(), mm0, mm1)  #add PLs w mutation
         
-        tree.write(outfile=args.output+'.nj0.tre', format=5)
+#        tree.write(outfile=args.output+'.nj0.tre', format=5)
         
         rerooted = 1
         while rerooted > 0:
