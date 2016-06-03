@@ -1,7 +1,7 @@
 # treecall
 Tree-based joint lineage inference and somatic mutation calling
 
-To must be running python2.X
+Treeview requires python2.X
 
 You must have the following installed:
 editdist (the version for python2 - https://code.google.com/p/py-editdist/)
@@ -35,6 +35,9 @@ optional arguments:
   -h, --help  show this help message and exit
   -a STR      node attributes to print given by a comma separated list
   -l FILE     leaves label
+  
+output:
+  the tree
 ```
 
 ## compare
@@ -45,6 +48,14 @@ optional arguments:
   -h, --help          show this help message and exit
   -t FILE [FILE ...]  input tree(s), in Newick format
   -r FILE             reference tree, in Newick format
+  
+output (for each tree):
+  tree
+  normalized robinson-foulds distance (from 0 to 1)
+  compatibility score of the target tree with respect to the source tree (how many edges in reference are found in the source)
+  compatibility score of the source tree with respect to the reference tree (how many edges in source are found in the reference)
+  sum of differences between two distance matrices / sum of ref matrix
+  rstat ?? 
 ```
 
 ## compat
@@ -58,6 +69,9 @@ positional arguments:
 optional arguments:
   -h, --help  show this help message and exit
   -v INT      minimum evidence in Phred scale for a site to be considered, default 60
+
+output:
+  ??
 ```
 
 ## nbjoin
@@ -73,6 +87,9 @@ optional arguments:
   -m INT      mutation rate in Phred scale, default 80
   -e INT      heterozygous rate in Phred scale, default 30
   -v INT      minimum evidence in Phred scale for a site to be considered, default 60
+  
+output:
+  newick trees from recursive NNI and recursive rerooting (printed and in files)
 ```
 
 ## part
@@ -88,6 +105,9 @@ optional arguments:
   -m INT      mutation rate in Phred scale, default 80
   -e INT      heterozygous rate in Phred scale, default 30
   -v INT      minimum evidence in Phred scale for a site to be considered, default 60
+  
+output:
+  newick trees from recursive NNI and recursive rerooting (printed and in files)  
 ```
 
 ## gtype
@@ -104,6 +124,9 @@ optional arguments:
   -n INT      number of sites processed once, default 1000
   -m INT      mutation rate in Phred scale, default 80
   -e INT      heterozygous rate in Phred scale, default 30, 0 for uninformative
+  
+output:
+
 ```
 
 ## annot
@@ -117,4 +140,7 @@ positional arguments:
 optional arguments:
   -h, --help  show this help message and exit
   -t FILE     lineage tree
+  
+output:
+
 ```

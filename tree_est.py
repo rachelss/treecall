@@ -128,6 +128,7 @@ def neighbor_main(args):
     D = make_D(PLs)  # pairwise differences between samples based only on PLs (should include mutation, but also shouldn't matter)
     allscores = []
     for i in range(n_smpl+2):  #10 different starting trees
+        print('Tree '+str(i+1)+' of '+str(n_smpl+2))
         tree = init_star_tree(n_smpl)
         internals = np.arange(n_smpl)
         
@@ -671,8 +672,8 @@ def recursive_reroot(tree, PLs,mm0, mm1, base_prior,DELTA):
         node_leaves = node.get_leaf_names()
         new_node = new_tree.get_common_ancestor(node_leaves)  #get corresponding node in new tree
         try:
-            print('Node:')
-            print(node)
+            #print('Node:')
+            #print(node)
             new_tree.set_outgroup(new_node) #reroot
     
             #recalculate
@@ -682,27 +683,28 @@ def recursive_reroot(tree, PLs,mm0, mm1, base_prior,DELTA):
                    
             PL_new = score(new_tree, base_prior)
             
-            print('This tree:')
-            print(new_tree)
-            print('Has this score:')
-            print(PL_new)
+            #print('This tree:')
+            #print(new_tree)
+            #print('Has this score:')
+            #print(PL_new)
     
             if PL_new < (PL-DELTA): #should this be multiplied or subtracted?
                 best_tree = new_tree.copy()
                 PL = PL_new
                 rerooted = 1
         except:
-            print('Can\'t set node as outgroup:')
-            print(node)
+            #print('Can\'t set node as outgroup:')
+            #print(node)
+            pass
             
     if rerooted == 1:  #there was a better tree
         tree = best_tree.copy()
-        print('Best tree:')
-        print(tree)
-    else:                        
-        print('No change to tree:')
-        print(tree)
-        print(PL)
+        #print('Best tree:')
+        #print(tree)
+    #else:                        
+        #print('No change to tree:')
+        #print(tree)
+        #print(PL)
         
     print(' done', end='', file=sys.stderr)
     print(tree)
@@ -822,8 +824,8 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
     #goes until can get through tree w/o nni at any node
     #a la phylip
     num_nnis=1
-    print(tree)
-    print(PL)
+    #print(tree)
+    #print(PL)
     while(num_nnis>0):
         num_nnis=0
         print('Start nni round')
@@ -834,7 +836,7 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
             if node.is_leaf():
                 continue
             print('.', end='', file=sys.stderr)
-            print(node)
+            #print(node)
             possible_rearrangements = nearest_neighbor_interchange(node.copy(),PLs, mm0, mm1, base_prior,DELTA)
 #            print('Original original tree:')
 #            print(tree)
@@ -843,8 +845,8 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
 #                    print(r)
                 if node.is_root():  #because can't get parent as for below
                     for r in possible_rearrangements:
-                        print('Rearranged node:')
-                        print(r)
+                        #print('Rearranged node:')
+                        #print(r)
                         
                         new_tree = init_tree(r.copy())  #tree has nid's (node id) and sid's (list of tip names - sorted)
                         new_tree = populate_tree_PL(new_tree, PLs, mm0, 'PL0')  #tree has PLs for no mutation at tips and nodes
@@ -852,29 +854,29 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
 
                         PL_new = score(new_tree, base_prior)
                         
-                        print('This tree:')
-                        print(new_tree)
-                        print('Has this score:')
-                        print(PL_new)
+                        #print('This tree:')
+                        #print(new_tree)
+                        #print('Has this score:')
+                        #print(PL_new)
 
                         if PL_new < (PL-DELTA): #should this be multiplied or subtracted?
                             best_tree = new_tree.copy()
-                            print(best_tree)
+                            #print(best_tree)
                             PL = PL_new
                             num_nnis = 1
                     if num_nnis == 1:  #there was a better tree
                         tree = best_tree.copy()
-                        print('Best tree so far:')
-                        print(tree)
-                    else:                        
-                        print('No change to tree:')
-                        print(tree)
-                        print(PL)
+                        #print('Best tree so far:')
+                        #print(tree)
+                    #else:                        
+                     #   print('No change to tree:')
+                     #   print(tree)
+                     #   print(PL)
 
                 else:
                     for r in possible_rearrangements:
-                        print('Rearranged node:')
-                        print(r)
+                        #print('Rearranged node:')
+                        #print(r)
                         new_tree = tree.copy()
                         node_leaves = node.get_leaf_names()
                         new_node = new_tree.get_common_ancestor(node_leaves)  #get corresponding node in new tree
@@ -890,10 +892,10 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
                         
                         PL_new = score(new_tree, base_prior)
                                                 
-                        print('This tree:')
-                        print(new_tree)
-                        print('Has this score:')
-                        print(PL_new)
+                        #print('This tree:')
+                        #print(new_tree)
+                        #print('Has this score:')
+                        #print(PL_new)
                         
                         if PL_new < (PL-DELTA): #should this be multiplied or subtracted?
                             PL = PL_new
@@ -904,13 +906,13 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
 
                     if num_nnis == 1:  #there was a better tree
                         tree = best_tree.copy()
-                        print('Best tree so far:')
-                        print(tree)
+                        #print('Best tree so far:')
+                        #print(tree)
                         break  #take best tree and start over because now nni's will be all different
-                    else:                        
-                        print('No change to tree:')
-                        print(tree)
-                        print(PL)
+                    #else:                        
+                        #print('No change to tree:')
+                        #print(tree)
+                        #print(PL)
                     
         #print(str(num_nnis)+' nnis', end='', file=sys.stderr)
         #print(PL)

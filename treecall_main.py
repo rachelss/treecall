@@ -469,15 +469,6 @@ if __name__ == '__main__':
     parser_nbjoin.add_argument('-v', metavar='INT', dest='min_ev', type=int, default=60, help='minimum evidence in Phred scale for a site to be considered, default 60')
     parser_nbjoin.set_defaults(func=neighbor_main)
 
-    #part uses partition_main
-    parser_part = subp.add_parser('part', help='a top-down method that partition samples by sum of partition cost across all sites')
-    parser_part.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
-    parser_part.add_argument('output', metavar='<output>', type=str, help='output basename')
-    parser_part.add_argument('-m', metavar='INT', dest='mu', type=int, default=80, help='mutation rate in Phred scale, default 80')
-    parser_part.add_argument('-e', metavar='INT', dest='het', type=int, default=30, help='heterozygous rate in Phred scale, default 30')
-    parser_part.add_argument('-v', metavar='INT', dest='min_ev', type=int, default=60, help='minimum evidence in Phred scale for a site to be considered, default 60')
-    parser_part.set_defaults(func=partition_main)
-
     #gtype uses genotype_main
     parser_gtype = subp.add_parser('gtype', help='genotype samples with help of a lineage tree')
     parser_gtype.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
