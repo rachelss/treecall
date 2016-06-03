@@ -1,9 +1,11 @@
+import sys
+sys.path.append('../')
 from tree_est import *
 from ete2 import Tree
 import numpy as np
 
 def test_read_vcf():
-    input_vcf = './test.vcf'
+    input_vcf = 'test.vcf'
     vcffile, variants, ADs, PLs = read_vcf(input_vcf, 60)
     
     assert len(variants) == 65, "Finding "+len(variants)+" instead of 65 expected"
@@ -61,7 +63,7 @@ def test_make_mut_matrix():
     assert(np.isclose(exp_mm1, mm1).all()==True)
 
 def test_make_D():
-    input_vcf = './test.vcf'
+    input_vcf = 'test.vcf'
     vcffile, variants, ADs, PLs = read_vcf(input_vcf, 60)
     PLs = PLs.astype(np.longdouble)
     D = make_D(PLs)
