@@ -3,8 +3,8 @@ Tree-based joint lineage inference and somatic mutation calling
 
 Treeview requires python2.X
 
-You must have the following installed:
-editdist (the version for python2 - https://code.google.com/p/py-editdist/)
+You must have the following installed:  
+editdist (the version for python2 - https://code.google.com/p/py-editdist/)  
 ete2 (note not ete3) (https://github.com/jhcepas/ete/tree/2.3)
 
 ```
@@ -16,7 +16,6 @@ positional arguments:
     compare   compare tree topology
     compat    calculate pairwise compatibility between all pairs of sites
     nbjoin    neighbor-joining
-    part      a top-down method that recursively partition samples based on partition cost
     gtype     genotype samples with help of a lineage tree
     annot     annotate lineage tree with genotype calls
 
@@ -89,25 +88,7 @@ optional arguments:
   -v INT      minimum evidence in Phred scale for a site to be considered, default 60
   
 output:
-  newick trees from recursive NNI and recursive rerooting (printed and in files)
-```
-
-## part
-```
-usage: treecall.py part [-h] [-m INT] [-e INT] [-v INT] <vcf> <output>
-
-positional arguments:
-  <vcf>       input vcf/vcf.gz file, "-" for stdin
-  <output>    output basename
-
-optional arguments:
-  -h, --help  show this help message and exit
-  -m INT      mutation rate in Phred scale, default 80
-  -e INT      heterozygous rate in Phred scale, default 30
-  -v INT      minimum evidence in Phred scale for a site to be considered, default 60
-  
-output:
-  newick trees from recursive NNI and recursive rerooting (printed and in files)  
+  optimal newick trees (in files) after recursive NNI and recursive rerooting from multiple starting trees (random; nj; partitioning)
 ```
 
 ## gtype
