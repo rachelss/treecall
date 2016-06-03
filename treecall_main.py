@@ -23,6 +23,8 @@ warnings.filterwarnings('error')
 
 from tree_est import *
 
+from utils import *
+
 def read_vcf_records(vcffile, fmt, maxn=1000):
     """Read vcf file - get info about variants - need to clarify how this is different from read_vcf
 
@@ -177,6 +179,10 @@ def subdiv(PLs, tree):
 
 
 def genotype_main(args):
+    """
+    uses init_tree, make_base_prior, make_mut_matrix, read_vcf_records, genotype
+    """
+    
     GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
     print(args, file=sys.stderr)
 
@@ -204,6 +210,9 @@ def genotype_main(args):
 
 
 def genotype(PLs, tree, variants, mm, mm0, mm1, base_prior):
+    """
+    uses populate_tree_PL, calc_mut_likelihoods, phred2p
+    """
     GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
     # calculate total likelihoods for each genotypes
     populate_tree_PL(tree, PLs, mm, 'PL') # dim(tree.PL) = site x gtype
