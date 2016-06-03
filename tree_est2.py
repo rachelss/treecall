@@ -278,36 +278,6 @@ def neighbor_joining(D, tree, internals):
     print(' done', file=sys.stderr)
     return D,tree
 
-def calc_mut_likelihoods(tree, mm0, mm1):
-    """
-    go through tree from leaves to root - attach PLm to each node (not tips!)
-    
-    Args:
-        tree (Tree)
-        mm0: mutation matrix (np array of float) (non-diagonal set to 0)
-        mm1: mutation matrix (np array of float) (diagonal set to 0)
-        
-    Returns:
-        Tree (w annotated nodes)
-    """
-    n,g = tree.PL0.shape  #n = num var; g = num genos (eg 3)
-    for node in tree.traverse(strategy='postorder'):
-        if not node.is_leaf():
-            node.PLm = np.zeros((2*len(node)-2,n,g), dtype=np.longdouble)  #len(node) = num tips associate
-
-    for node in tree.traverse(strategy='postorder'):
-        i = 0
-        for child in node.children:
-            sister = child.get_sisters()[0]
-            if not child.is_leaf():
-                l = child.PLm.shape[0]
-                node.PLm[i:(i+l)] = p2phred(np.dot(phred2p(child.PLm), mm0)) + p2phred(np.dot(phred2p(sister.PL0), mm0))
-                i += l
-            node.PLm[i] = p2phred(np.dot(phred2p(child.PL0), mm1)) + p2phred(np.dot(phred2p(sister.PL0), mm0))
-            i += 1
-
-    return tree
-
 def update_PL(node, mm0, mm1):
     """
     PL for nodes depend on children so must be updated if node children change due to nni/reroot
@@ -347,30 +317,6 @@ def update_PL(node, mm0, mm1):
         i += 1
 
     return node
-
-def populate_tree_PL(tree, PLs, mm, attr): #e.g. populate_tree_PL(tree, PLs, mm0, 'PL0')
-    """
-    
-    Args:
-        tree (Tree)
-        PLs (np.array): phred scaled likelihoods
-        mm: mutation matrix (np array of float) (mm0 has non-diagonal set to 0; mm1 has diagonal set to 0)
-        attr: attribute to be set e.g. PL0
-    
-    Returns:
-        Tree: now has matrix attached to nodes
-            PLs for all vars for this leaf or dot product of child's matrix and mutation matrix
-    """
-    n,m,g = PLs.shape # n sites, m samples, g gtypes
-    for node in tree.traverse(strategy='postorder'):
-        if node.is_leaf():
-            setattr(node, attr, PLs[:,node.sid[0],])  #sid is list of children's labels (numbers) - using 0 b/c only one label for leaf
-        else:
-            setattr(node, attr, np.zeros((n,g), dtype=np.longdouble))
-            for child in node.children:
-                setattr(node, attr, getattr(node, attr) + p2phred(np.dot(phred2p(getattr(child, attr)), mm))) #sum of phred of each child's likelihoods*mut matrix
-                
-    return tree
 
 def score(tree, base_prior):
     """
