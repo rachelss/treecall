@@ -507,31 +507,13 @@ def score(tree, base_prior):
     return p2phred(Pm+P0).sum()
 
 
-def annotate_nodes(tree, attr, values):
-
-    for node in tree.iter_descendants('postorder'):
-        setattr(node, attr, values[node.nid])
-
-    return tree
-
-def read_label(filename):
-    """from tab delim file: dict of
-        key: first col in file / index
-        value: second col in file (or first col if only one)
-    """
-    label = {}
-    with open(filename) as f:
-        i = 0
-        for line in f:
-            c = line.rstrip().split('\t')
-            if len(c) > 1:
-                label[c[0]] = c[1]
-            else:
-                label[str(i)] = c[0]
-            i += 1
-    return label
-
 def partition(PLs, tree, sidx, min_ev):
+    """requires
+            make_selection_matrix2
+            calc_minimum_pt_cost
+            
+    """
+    
     if tree.is_root():
         print('partition() begin', end=' ', file=sys.stderr)
     m = len(sidx) # number of samples under current node
