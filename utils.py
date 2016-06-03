@@ -23,6 +23,77 @@ warnings.filterwarnings('error')
 
 DELTA=0.0001  #move this so it's not global
 
+def read_vcf(filename, evidence=60):
+    """Read vcf file - get info about variants
+
+    Args:
+        filename (str): vcf filename
+        evidence (int): minimum evidence in Phred scale
+            for a site to be considered, default 60
+
+    Returns:
+        vcf: a vcffile
+        np.array (tuple): variant info (chrom, pos, ref)
+            for each variant
+        np.array (int): allele depth for each of the 2 most common alleles
+            for each variant overall; array for each sample for each variant
+            in order of freq
+        np.array (int): List of Phred-scaled genotype likelihoods
+            for each of the genotypes from the 2 most common alleles for each variant
+            by common/common, common/less_common, less/less
+
+    """
+    vcffile = vcf.Reader(open(filename, 'r'))
+    bases = ['A','C','G','T']
+    variants,ADs,PLs = [],[],[]
+    
+    #mapping allele to genotype eg row 0, col 2 is ref/alt2 = most common alleles
+    #gives PLs 0,3,5
+    #triallelic the PL pattern is RR,RA1,A1A1,RA2,A1A2,A2A2 
+    #so correctly gets PLs for RR, RA2, A2A2
+    a2g = np.array((
+            ((0,0,0), (0,1,2), (0,3,5), (0,6,9)),
+            ((2,1,0), (2,2,2), (2,4,5), (2,7,9)),
+            ((5,3,0), (5,4,2), (5,5,5), (5,8,9)),
+            ((9,6,0), (9,7,2), (9,8,5), (9,9,9))
+        ))
+    
+    for v in vcffile:
+        if v.REF in bases and v.ALT[0] in bases:  #check snp
+            variants.append((v.CHROM,v.POS,v.REF))
+            
+            #ad for each sample for each allele
+            ad = np.array([v.genotype(s).data.AD for s in vcffile.samples], dtype=np.uint16) 
+            #triallelic the PL pattern is RR,RA1,A1A1,RA2,A1A2,A2A2 
+            pl = np.array([v.genotype(s).data.PL for s in vcffile.samples], dtype=np.uint16) #list of PL-as-int in array
+            
+            #ak = columns of two most common alleles ordered by freq
+            #sum ad across samples; order by decreasing depth, take only the two most common alleles
+            ak = ad.sum(axis=0).argsort(kind='mergesort')[-2:][::-1]   
+            #append ad ordered by freq NOT ref,alt
+            ADs.append(ad[...,ak])  
+            
+            #get genotypes' PLs in order of allele freq across samples
+            gk = a2g[ak[0],ak[1]]
+            PLs.append(pl[...,gk])
+    
+    variants = np.array(variants)
+    ADs = np.array(ADs)
+    PLs = np.array(PLs)
+    
+    #for each variant, sum PL for each genotype across samples
+    #genotypes are ordered from most to least likely NOT ref/ref, ref/alt, alt/alt
+    #check if PL sums are all greater than evidence
+    #this removes sites where the joint genotyping likelihood across samples
+    #for second most likely genotype is < 10^-6
+    #i.e. most likely genotype for each sample has strong support
+    #k_ev = (np.sort(PLs).sum(axis=1)>=evidence).sum(axis=1)==2  #this used to be ==3 but that doesn't seem right - it should be checked
+    #variants,ADs,PLs = variants[k_ev],ADs[k_ev],PLs[k_ev]
+    #commented about above bc it's probably filtering uncertain variants but that's the whole point of treecall, and we're not sure what it's doing anyway
+
+    print(' done', file=sys.stderr)
+    return vcffile, variants, ADs, PLs
+
 def init_tree(tree):
     """
     node.sid = list of children
