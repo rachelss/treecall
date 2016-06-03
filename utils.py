@@ -96,7 +96,8 @@ def read_vcf(filename, evidence=60):
 
 
 def neighbor_main(args):
-    """generate neighbor-joining tree then do recursive NNI and recursive reroot
+    """generate trees then do recursive NNI and recursive reroot
+        starting trees are (1) nj, (2) partition, (3) random (num samples)
 
     Args:
         vcf(str): input vcf/vcf.gz file, "-" for stdin
