@@ -10,10 +10,7 @@ import signal
 signal.signal(signal.SIGPIPE, signal.SIG_DFL)
 
 import sys
-import itertools
 import numpy as np
-from scipy.stats import sem
-from editdistance import eval as strdist
 import vcf
 
 with warnings.catch_warnings(ImportWarning):
@@ -21,52 +18,89 @@ with warnings.catch_warnings(ImportWarning):
 
 warnings.filterwarnings('error')
 
-from tree_est import *
-
 from utils import *
 
-def read_vcf_records(vcffile, fmt, maxn=1000):
+def read_vcf_records(filename, maxn=1000):
     """Read vcf file - get info about variants - need to clarify how this is different from read_vcf
 
     Args:
-        vcffile (VcfFile)
-        fmt(dict): item:pos_in_list from the 9th column of a vcf line
+        filename: name of vcf file to read
         maxn (int): number of lines / sites in file to process
 
     Returns:
         np.array (tuple): variant info (chrom, pos, ref)
-        np.array (int): Number of high-quality bases observed for each of the 2 most common alleles
-        np.array (double): List of Phred-scaled genotype likelihoods for each of the 2 most common alleles
+        np.array (int): Number of high-quality bases observed for each of the alleles
+        np.array (double): List of Phred-scaled genotype likelihoods for all 10 possible genotypes
 
     """    
-    print('read next %d sites' % maxn, end=' ', file=sys.stderr)
-    variants,DPRs,PLs = [],[],[]
+    print('read next %d sites' % maxn, end = ' ', file=sys.stderr)
+    
+    vcffile = vcf.Reader(open(filename, 'r'))
+    variants,ADs,PLs = [],[],[]
+    bases = ['A','C','G','T']
     i = 0
     for v in vcffile:
         i += 1
-        try:
+        print('.' , end = '', file=sys.stderr)
+        if v.REF in bases and v.ALT[0] in bases:
             variants.append((v.CHROM,v.POS,v.REF))
-            dpr = np.array(v.extract_gtype('DPR', fmt, v.get_DPR4), dtype=np.uint16)
-            DPRs.append(dpr)
-            pl = np.array(v.extract_gtype('PL', fmt, v.get_PL10), dtype=np.longdouble)
+            #ad for each sample for each allele
+            ad = np.array([v.genotype(s).data.AD for s in vcffile.samples], dtype=np.uint16)                
+            ADs.append(ad)
+            
+            s = [str(b) for b in v.ALT if str(b) in bases] #filter X
+            s.insert(0,str(v.REF))
+            #this is a silly way to find the correct genotypes in the pls
+            if len(s) == 2:
+                find_geno = {0:s[0]+s[0], 1:''.join(sorted(s[0]+s[1])), 2:s[1]+s[1]}
+            elif len(s) == 3:
+                find_geno = {0:s[0]+s[0], 1:''.join(sorted(s[0]+s[1])), 2:s[1]+s[1], 3:''.join(sorted(s[0]+s[2])), 4:''.join(sorted(s[1]+s[2])), 5:s[2]+s[2]}
+            elif len(s) == 4:
+                find_geno = {0:s[0]+s[0], 1:''.join(sorted(s[0]+s[1])), 2:s[1]+s[1], 3:''.join(sorted(s[0]+s[2])), 4:''.join(sorted(s[1]+s[2])), 5:s[2]+s[2], 6:''.join(sorted(s[0]+s[3])), 7:''.join(sorted(s[1]+s[3])), 8:''.join(sorted(s[2]+s[3])), 9:s[3]+s[3]}
+                             
+            #get pl for ref and alts
+            pl = [v.genotype(s).data.PL for s in vcffile.samples]  #list of lists
+            for j,p in enumerate(pl):
+                pl_dict = {'AA':255,'AC':255,'AG':255,'AT':255,'CC':255,'CG':255,'CT':255,'GG':255,'GT':255,'TT':255} #all genos are unlikely
+                
+                #triallelic the PL pattern is RR,RA1,A1A1,RA2,A1A2,A2A2
+                for o in range(len(find_geno)):
+                    g = find_geno[o]
+                    pl_dict[g] = p[o]  #pl for that geno
+                assert len(pl_dict) == 10, sorted(pl_dict.keys())
+                    
+                #get PL for all 10 in alpha order as np
+                pl[j] = np.array([float(geno_pl) for geno,geno_pl in sorted(pl_dict.items())], dtype = np.longdouble)  #float, but should be np array longdouble
+
+            pl = np.array(pl)
+            assert pl.shape == (len(vcffile.samples),10), pl.shape
             PLs.append(pl)
-        except Exception as e:
-            print(e, file=sys.stderr)
-            print(v, file=sys.stderr)
+                
         if i == maxn:
             print('... %s:%s ...' % (v.CHROM, v.POS), end=' ', file=sys.stderr)
             break
 
     variants = np.array(variants)
-    DPRs = np.array(DPRs, dtype=np.uint16)
-    PLs = np.array(PLs, dtype=np.longdouble)
+    PLs = np.array(PLs)
+    num_var, num_samp, num_geno = PLs.shape
+    assert num_samp == len(vcffile.samples)
+    assert num_geno == 10
+ #   DPRs = np.array(ADs)
 
     print(' done', file=sys.stderr)
-    return variants, DPRs, PLs
+    return variants, ADs, PLs
 
 def genotype_main(args):
     """
     uses init_tree, make_base_prior, make_mut_matrix, read_vcf_records, genotype
+    
+    Args:
+        vcf: input vcf/vcf.gz file, "-" for stdin
+        output: output basename
+        tree: file containing lineage tree'
+        nsite: number of sites processed once, default 1000
+        mu: mutation rate in Phred scale, default 80
+        het: heterozygous rate in Phred scale, default 30, 0 for uninformative
     """
     
     GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
@@ -78,14 +112,13 @@ def genotype_main(args):
     base_prior = make_base_prior(args.het, GTYPE10) # base genotype prior
     mm,mm0,mm1 = make_mut_matrix(args.mu, GTYPE10) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
 
-    vcffile = VcfFile(args.vcf)
-    fmt = vcffile.fmt
     fout = open(args.output, 'w')
     fout.close()
     fout = open(args.output, 'a')
+    
     score = 0
     while True:
-        variants, DPRs, PLs = read_vcf_records(vcffile, vcffile.fmt, args.nsite)
+        variants, DPRs, PLs = read_vcf_records(args.vcf, args.nsite)
         records,s = genotype(PLs, tree, variants, mm, mm0, mm1, base_prior)
         np.savetxt(fout, records, fmt=['%s','%d','%s','%.2e','%.2e','%s','%.2e','%s','%s','%.2e','%d','%s'], delimiter='\t')
         score += s
@@ -100,17 +133,18 @@ def genotype(PLs, tree, variants, mm, mm0, mm1, base_prior):
     """
     GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
     # calculate total likelihoods for each genotypes
-    populate_tree_PL(tree, PLs, mm, 'PL') # dim(tree.PL) = site x gtype
+    tree = populate_tree_PL(tree.copy(), PLs, mm, 'PL') # dim(tree.PL) = site x gtype
     tree_PL = tree.PL + base_prior
     # calculate no-mutation likelihoods for each genotypes
     #try:
-    populate_tree_PL(tree, PLs, mm0, 'PL0') # dim(tree.PL0) = site x gtype
+    tree = populate_tree_PL(tree.copy(), PLs, mm0, 'PL0') # dim(tree.PL0) = site x gtype
     #except Exception as e:
     #    print('populate_tree_PL():', e, file=sys.stderr)
     #    sys.exit(1)
     tree_PL0 = tree.PL0 + base_prior
+    
     # calculate mutation likelihoods for each genotypes and mutation locations
-    calc_mut_likelihoods(tree, mm0, mm1)
+    tree = calc_mut_likelihoods(tree.copy(), mm0, mm1)
     mut_PLs = np.swapaxes(tree.PLm,0,1) # site x location x gtype
     mut_PLs += base_prior
     n,l,g = mut_PLs.shape # n sites, l locations, g gtypes
