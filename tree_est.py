@@ -748,29 +748,3 @@ def recursive_NNI(tree, PLs, mm0, mm1, base_prior,DELTA):
     print(tree)
     print(PL)
     return tree,PL_new
-
-if __name__ == '__main__':
-    import argparse
-    
-    GTYPE3 = np.array(('RR','RA','AA'))
-    GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
-    DELTA = 1e-4
-
-    parser = argparse.ArgumentParser()
-    subp = parser.add_subparsers(metavar='<command>', help='sub-commands')
-
-    #nbjoin uses neighbor_main, read_vcf, make_base_prior (normalize_PL), make_mut_matrix (phred2p, gtype_distance), make_D (pairwise_diff, normalize2d_PL, phred2p), init_star_tree, neighbor_joining
-    #init_tree, populate_tree_PL, calc_mut_likelihoods (p2phred), recursive_NNI (nearest_neighbor_interchange, update_PL, score), recursive_reroot (reroot, update_PL)
-    parser_nbjoin = subp.add_parser('nbjoin', help='neighbor-joining')
-    parser_nbjoin.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
-    parser_nbjoin.add_argument('output', metavar='output', type=str, help='output basename')
-    parser_nbjoin.add_argument('-m', metavar='INT', dest='mu', type=int, default=80, help='mutation rate in Phred scale, default 80')
-    parser_nbjoin.add_argument('-e', metavar='INT', dest='het', type=int, default=30, help='heterozygous rate in Phred scale, default 30')
-    parser_nbjoin.add_argument('-v', metavar='INT', dest='min_ev', type=int, default=60, help='minimum evidence in Phred scale for a site to be considered, default 60')
-    parser_nbjoin.set_defaults(func=neighbor_main)
-    
-    try:
-        args = parser.parse_args()
-        args.func(args)
-    except KeyboardInterrupt:
-        sys.exit(1)
