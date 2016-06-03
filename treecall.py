@@ -23,6 +23,7 @@ warnings.filterwarnings('error')
 
 from tree_est import *
 from utils import *
+from geno import *
 
 def compat_main(args):
     """calculate pairwise compatibility between all pairs of sites
