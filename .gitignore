@@ -1,0 +1,4 @@
+*.ipynb
+test/*.ipynb
+test/*.nwk
+test/*.tre
