@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 #bcftools 1.3; Using htslib 1.3
 
-N=$1
-cov=$2
-ref=$3
+N=$1  #number of samples
+cov=$2  #coverage
+ref=$3  #reference for simulation and alignment
 
 if [ "$ref" = "" ]
 then
@@ -16,8 +16,8 @@ dir="x$cov"
 treecall = ../treecall.py
 pyfilter = find_polymorphic_sites.py
 mkphylip = vcf2seq.py
-#phylip tools must be installed and in path dnaml, dnacomp, dnadist, neighbor
 
+#phylip tools must be installed and in path dnaml, dnacomp, dnadist, neighbor
 which dnaml &>/dev/null
     [ $? -eq 0 ] || { echo "Phylip must be installed to run. The installation folder must be in your path. Aborting."; exit 1; }
 which samtools &>/dev/null
@@ -34,7 +34,7 @@ which samtools &>/dev/null
 #
 #    header="@RG\\tID:$s\\tSM:s$s"
 #    bwa mem -I350,35 -R$header $ref $dir/$s/$s.bwa.read1.fastq.gz $dir/$s/$s.bwa.read2.fastq.gz | samtools1 sort -o $dir/$s/$s.bam -T $dir/$s/$s -
-#    samtools1 index $dir/$s/$s.bam
+#    samtools index $dir/$s/$s.bam
 #done
 #echo "BAMs ready"
 #
@@ -75,7 +75,8 @@ echo "treecall done"
 
 # phylip
 mkdir -p phylip
-bcftools view -v snps $dir/$dir.snp.vcf.gz | python2 $mkphylip - phylip > phylip/$dir.snp.phylip
+bcftools view -v snps $dir/$dir.snp.vcf.gz > $dir/$dir.snp.vcf
+python2 $mkphylip $dir/$dir.snp.vcf
 cd phylip
 rm -f outtree outfile
 echo "$dir.snp.phylip" > phylip_inputs.list

@@ -5,7 +5,7 @@ from ete2 import Tree
 import numpy as np
 
 def test_read_vcf():
-    input_vcf = 'test.vcf'
+    input_vcf = 'test_tree.vcf'
     vcffile, variants, ADs, PLs = read_vcf(input_vcf, 60)
     
     assert len(variants) == 65, "Finding "+len(variants)+" instead of 65 expected"
