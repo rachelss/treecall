@@ -81,29 +81,29 @@ echo "treecall done"
 # phylip
 mkdir -p phylip
 bcftools view -v snps $dir/x${cov}.snp.vcf.gz > $dir/x${cov}.snp.vcf
-python2 $mkphylip $dir/$dir.snp.vcf
-cd phylip
+python2 $mkphylip $dir/x${cov}.snp.vcf
 rm -f outtree outfile
-echo "$dir.snp.phylip" > phylip_inputs.list
-echo "Y" >> phylip_inputs.list
-echo "$dir.snp.dist" > dist_inputs.list
-echo "Y" >> dist_inputs.list
+echo "$dir/x${cov}.snp.vcf.alignment.phylip" > phylip/phylip_inputs.list
+echo "Y" >> phylip/phylip_inputs.list
 # --- dnaml --- #
-cat phylip_inputs.list | dnaml
-paste -s outtree | perl -lne 's/s(\d+)/$1-1/ge; s/:[0-9.-]+/:1/g; s/\s//g; s/\[[^\[\]]*\]//g; s/;/;\n/g; print;' > $dir.ml.tree
-head -1 $dir.ml.tree > $dir.dnaml.nwk
+cat phylip/phylip_inputs.list | dnaml
+paste -s outtree | perl -lne 's/s(\d+)/$1-1/ge; s/:[0-9.-]+/:1/g; s/\s//g; s/\[[^\[\]]*\]//g; s/;/;\n/g; print;' > $dir/x${cov}.ml.tree
+head -1 $dir/x${cov}.ml.tree > $dir/x${cov}.ml.tre
 rm -f outtree outfile
 # --- dnacomp --- #
-cat phylip_inputs.list | dnacomp
-paste -s outtree | perl -lne 's/s(\d+)/$1-1/ge; s/:[0-9.-]+/:1/g; s/\s//g; s/\[[^\[\]]*\]//g; s/;/;\n/g; print;' > $dir.comp.tree
-head -1 $dir.comp.tree > $dir.dnacomp.nwk
+cat phylip/phylip_inputs.list | dnacomp
+paste -s outtree | perl -lne 's/s(\d+)/$1-1/ge; s/:[0-9.-]+/:1/g; s/\s//g; s/\[[^\[\]]*\]//g; s/;/;\n/g; print;' > $dir/x${cov}.comp.tree
+head -1 $dir/x${cov}.comp.tree > $dir/x${cov}.dnacomp.tre
 rm -f outtree outfile
+
+#fix this
 # --- neighbor --- #
-cat phylip_inputs.list | dnadist
-mv outfile $dir.snp.dist
-cat dist_inputs.list | neighbor
-paste -s outtree | perl -lne 's/s(\d+)/$1-1/ge; s/:[0-9.-]+/:1/g; s/\s//g; s/\[[^\[\]]*\]//g; s/;/;\n/g; print;' > $dir.nj.tree
-head -1 $dir.nj.tree > $dir.neighbor.nwk
-rm -f outtree outfile
-cd ..
+#echo "$dir.snp.dist" > dist_inputs.list
+#echo "Y" >> dist_inputs.list
+#cat phylip_inputs.list | dnadist
+#mv outfile $dir.snp.dist
+#cat dist_inputs.list | neighbor
+#paste -s outtree | perl -lne 's/s(\d+)/$1-1/ge; s/:[0-9.-]+/:1/g; s/\s//g; s/\[[^\[\]]*\]//g; s/;/;\n/g; print;' > $dir/x${cov}.nj.tree
+#head -1 $dir/x${cov}.nj.tree > $dir/x${cov}.neighbor.tre
+#rm -f outtree outfile
 echo "phylip done"
