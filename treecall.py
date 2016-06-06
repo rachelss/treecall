@@ -13,7 +13,7 @@ import sys
 import itertools
 import numpy as np
 from scipy.stats import sem
-from editdistance import eval as strdist
+#from editdistance import eval as strdist
 import vcf
 
 with warnings.catch_warnings(ImportWarning):
