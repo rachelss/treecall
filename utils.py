@@ -87,7 +87,7 @@ def read_vcf(filename, evidence=60):
     #this removes sites where the joint genotyping likelihood across samples
     #for second most likely genotype is < 10^-6
     #i.e. most likely genotype for each sample has strong support
-    #k_ev = (np.sort(PLs).sum(axis=1)>=evidence).sum(axis=1)==2  #this used to be ==3 but that doesn't seem right - it should be checked
+    #k_ev = (PLs.sum(axis=1)>=evidence).sum(axis=1)==2  #this used to be ==3 but that doesn't seem right - it should be checked
     #variants,ADs,PLs = variants[k_ev],ADs[k_ev],PLs[k_ev]
     #commented about above bc it's probably filtering uncertain variants but that's the whole point of treecall, and we're not sure what it's doing anyway
 
