@@ -67,7 +67,7 @@ python2 $pyfilter $dir/x${cov}.var.vcf.vcf 'AD4:1'
 #fix below to allow for gz
 #python2 $treecall part -m 60 -v 60 -e 30 $dir/$dir.candidate2.vcf.gz $dir/$dir.treecall-pt
 python2 $treecall nbjoin -m 60 -v 60 -e 30 $dir/x${cov}.var.vcf.vcf.vcf $dir/x${cov}.treecall
-besttree=$(sort -k 2 ms10i100s35a/x10/x10.treecall.scores.txt | head -1 | cut -f 1 -d ' ')
+besttree=$(sort -k 2 $dir/x${cov}.treecall.scores.txt | head -1 | cut -f 1 -d ' ')
 
 # treecall genotype
 bcftools view $dir/x${cov}.bcf | sed 's/Number=[A-Z]/Number=./' | sed 's/,Version=\"3\"//' > $dir/x${cov}.vcf
