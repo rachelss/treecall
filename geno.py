@@ -110,7 +110,7 @@ def genotype_main(args):
     tree = init_tree(tree)
 
     base_prior = make_base_prior(args.het, GTYPE10) # base genotype prior
-    mm,mm0,mm1 = make_mut_matrix(args.mu, GTYPE10) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
+    mm,mm0,mm1 = make_mut_matrix_gtype10(args.mu)#, GTYPE10) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
 
     fout = open(args.output, 'w')
     fout.close()
