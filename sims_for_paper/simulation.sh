@@ -74,7 +74,7 @@ python2 $pyfilter $dir/x${cov}.vcf 'AD:2'
 python2 $treecall gtype -t $dir/x${cov}.treecall.${besttree}.tre -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.tc.txt
 awk '$5>0.5' $dir/x${cov}.tc.txt > $dir/x${cov}.tc.p50.txt
 
-python2 $treecall gtype -t ms.nwk -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.ms.txt
+python2 $treecall gtype -t $(dirname $dir)/ms.nwk -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.ms.txt
 awk '$5>0.5' $dir/x${cov}.ms.txt > $dir/x${cov}.ms.p50.txt
 echo "treecall done"
 
