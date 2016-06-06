@@ -118,9 +118,15 @@ if __name__ == '__main__':
     vcffile = vcf.Reader(open(input_vcf, 'r'))
     vcf_writer = vcf.Writer(open(input_vcf+'.vcf', 'w'), vcffile)
 
+    print('Filtering sites', end = ' ', file=sys.stderr)
+    samp_num = 0
     for v in vcffile:
+        samp_num += 1
+        if samp_num % 1000 == 0:
+                print(str(samp_num), end = ' ', file=sys.stderr)
         if v.REF == 'N' or v.ALT == '' or v.is_indel:
             pass
         else:
             if pass_filter(v, filters,vcffile.samples):
                 vcf_writer.write_record(v)
+    print(' done', file=sys.stderr)

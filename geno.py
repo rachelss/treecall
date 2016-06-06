@@ -42,7 +42,7 @@ def read_vcf_records(filename, maxn=1000):
     for v in vcffile:
         i += 1
         if i%1000 == 0:
-            print('.'+str(i) , end = '', file=sys.stderr)
+            print(str(i) , end = '.', file=sys.stderr)
         if v.REF in bases and v.ALT[0] in bases:
             variants.append((v.CHROM,v.POS,v.REF))
             #ad for each sample for each allele
