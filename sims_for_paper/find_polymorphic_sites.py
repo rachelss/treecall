@@ -118,7 +118,11 @@ if __name__ == '__main__':
     vcffile = vcf.Reader(open(input_vcf, 'r'))
     vcf_writer = vcf.Writer(open(input_vcf+'.vcf', 'w'), vcffile)
 
+    samp_num = 0
     for v in vcffile:
+        samp_num += 1
+        if samp_num % 1000 == 0:
+                print(str(samp_num) + ' ')
         if v.REF == 'N' or v.ALT == '' or v.is_indel:
             pass
         else:
