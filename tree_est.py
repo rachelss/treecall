@@ -99,6 +99,11 @@ def neighbor_main(args):
     
     print(allscores)
     
+    fo = open(args.output+'.scores.txt','w')
+    for i,s in enumerate(allscores):
+        fo.write(str(i) + ' ' + str(s) + "\n")
+    fo.close
+ 
 def init_star_tree(n):
     """Creates a tree, adds n children in star with numbers as names
 
