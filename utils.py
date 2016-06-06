@@ -200,10 +200,17 @@ def make_mut_matrix_gtype10(mu):
     pmu = phred2p(mu)
     nmu = 1-pmu
 
-    ##FIX ME
-    mm = np.array([[nmu**2, (2*pmu*nmu), (pmu*pmu)],
-              [(nmu*pmu), (pmu**2)+(nmu**2), (nmu*pmu)], 
-              [pmu*pmu, 2*pmu*nmu, (1-pmu)**2]])    
+    #Might need to check this
+    mm = np.array([[nmu**2,(2*(pmu/3)*nmu),(2*(pmu/3)*nmu),(2*(pmu/3)*nmu),(pmu/3)**2,2*((pmu/3)**2),2*(pmu/3)**2,(pmu/3)**2,2*(pmu/3)**2,(pmu/3)**2],
+        [(2*(pmu/3)*nmu),(nmu**2)+(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,2*(nmu*(pmu/3)),(nmu*(pmu/3))+(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,(pmu/3)**2,2*(pmu/3)**2,(pmu/3)**2],
+        [(2*(pmu/3)*nmu),(nmu*(pmu/3))+(pmu/3)**2,(nmu**2)+(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,2*((pmu/3)**2),(nmu*(pmu/3)),(nmu*(pmu/3))+(pmu/3)**2,(pmu/3)**2],
+        [(2*(pmu/3)*nmu),(nmu*(pmu/3))+(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,(nmu**2)+(pmu/3)**2,(pmu/3)**2,2*((pmu/3)**2),(nmu*(pmu/3))+(pmu/3)**2,(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,(nmu*(pmu/3))],
+        [(pmu/3)**2,(2*(pmu/3)*nmu),2*((pmu/3)**2),2*((pmu/3)**2),nmu**2,2*(nmu*(pmu/3)),2*(nmu*(pmu/3)),(pmu/3)**2,2*((pmu/3)**2),(pmu/3)**2],
+        [(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,((pmu/3)*nmu)+(pmu/3)**2,2*((pmu/3)**2),nmu*(pmu/3),(nmu**2)+(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,(nmu*(pmu/3)),(nmu*(pmu/3))+(pmu/3)**2,(pmu/3)**2],
+        [(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,2*((pmu/3)**2),((pmu/3)*nmu)+(pmu/3)**2,nmu*(pmu/3),(nmu*(pmu/3))+(pmu/3)**2,(nmu**2)+(pmu/3)**2,(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,(nmu*(pmu/3))],
+        [(pmu/3)**2,2*((pmu/3)**2),(2*(pmu/3)*nmu),2*((pmu/3)**2),(pmu/3)**2,2*(nmu*(pmu/3)),2*((pmu/3)**2),nmu**2,2*(nmu*(pmu/3)),(pmu/3)**2],
+        [(pmu/3)**2,2*((pmu/3)**2),(nmu*(pmu/3))+(pmu/3)**2,((pmu/3)*nmu)+(pmu/3)**2,(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,(nmu*(pmu/3))+(pmu/3)**2,(nmu*(pmu/3)),(nmu**2)+(pmu/3)**2,(nmu*(pmu/3))],
+        [(pmu/3)**2,2*((pmu/3)**2),2*((pmu/3)**2),2*((pmu/3)*nmu),(pmu/3)**2,2*((pmu/3)**2),2*((pmu/3)**2),(pmu/3)**2,2*(nmu*(pmu/3)),nmu**2]])
     
     mm0 = np.diagflat(mm.diagonal()) # substitution rate matrix with non-diagonal set to 0
     mm1 = mm - mm0 # substitution rate matrix with diagonal set to 0

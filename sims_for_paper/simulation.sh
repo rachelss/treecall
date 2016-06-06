@@ -4,18 +4,19 @@
 N=$1  #number of samples
 cov=$2  #coverage
 ref=$3  #reference for simulation and alignment
+basefolder=$4  #folder containing simulations
 
 if [ "$ref" = "" ]
 then
-    echo "usage: $0 <N> <cov> <ref>"
+    echo "usage: $0 <N> <cov> <ref> <basefolder>"
     exit 0
 fi
 
 samples=`seq 0 $N`
-dir="x$cov"
-treecall = ../treecall.py
-pyfilter = find_polymorphic_sites.py
-mkphylip = vcf2seq.py
+dir="${basefolder}/x${cov}"
+treecall=../treecall.py
+pyfilter=find_polymorphic_sites.py
+mkphylip=vcf2seq.py
 
 #phylip tools must be installed and in path dnaml, dnacomp, dnadist, neighbor
 which dnaml &>/dev/null
@@ -38,44 +39,48 @@ which samtools &>/dev/null
 #done
 #echo "BAMs ready"
 #
-find $dir -name '[1-9]*.bam' | sort-alt -N > $dir/bam.list
-find $dir -name '[0-9]*.bam' | sort-alt -N > $dir/bam0.list
+find $dir -name '[1-9]*.bam' | sort -V > $dir/bam.list
+find $dir -name '[0-9]*.bam' | sort -V > $dir/bam0.list
 
 # make BCFs
-samtools mpileup -f $ref -b $dir/bam.list -C50 -q 13 -Q 13 --ff 0x704 -t AD,ADF,ADR -g -o $dir/$dir.bcf  
+samtools mpileup -f $ref -b $dir/bam.list -C50 -q 13 -Q 13 --ff 0x704 -t AD,ADF,ADR -g -o ${dir}/x${cov}.bcf  #output is PL:ADF:ADR:AD for all sites 
 samtools mpileup -f $ref -C50 -q 13 -Q 13 --ff 0x704 -t AD,ADF,ADR -g -o $dir/0/0.bcf $dir/0/0.bam
 echo "BCFs ready"
 
 # bcfcall
-bcftools call -cv -o $dir/$dir.snp.vcf.gz -O z $dir/$dir.bcf  #consensus call, variants only, output compressed vcf
+bcftools call -cv -o $dir/x${cov}.snp.vcf.gz -O z ${dir}/x${cov}.bcf   #consensus call, variants only, output compressed vcf
 bcftools call -cv -o $dir/0/0.snp.vcf.gz -O z $dir/0/0.bcf
 echo "bcfcall done"
 
+bcftools view -v snps -i 'ADF[0]>0 & ADF[1]>0 & ADR[0]>0 & ADR[1]>0' $dir/x${cov}.bcf |
+sed 's/Number=[A-Z]/Number=./' | sed 's/,Version=\"3\"//' > $dir/x${cov}.var.vcf #get just snps; reads on both strands to ensure no weird indels - coudl actually test whether prob or quality is same forward or reverse
 # prepare for treecall - output of bcftools view not compatible with vcf.Reader in pyfilter
-bcftools view -v snps -i 'ADF[0]>0 & ADF[1]>0 & ADR[0]>0 & ADR[1]>0' $dir/$dir.bcf | #get just snps; reads on both strands to ensure no weird indels - coudl actually test whether prob or quality is same forward or reverse
-python2 $pyfilter - 'AD:2;PL:60' | #pipe to filter to check both alleles have more than min reads AND both het and homo present AND likely more than one geno across all samples
-bgzip -c > $dir/$dir.candidate1.vcf.gz  #pipe to zip; Skip lines started with character CHAR. [#]
+python2 $pyfilter $dir/x${cov}.var.vcf 'AD:2;PL:60'# > $dir/x${cov}.candidate1.vcf #pipe to filter to check both alleles have more than min reads AND both het and homo present AND likely more than one geno across all samples
+#bgzip -c > $dir/x${cov}.candidate1.vcf.gz  #pipe to zip; Skip lines started with character CHAR. [#]
 
 #fix below to allow for gz
-python2 $pyfilter $dir/$dir.candidate1.vcf.gz 'AD4:1' | bgzip -c > $dir/$dir.candidate2.vcf.gz #filter for at least F or R has 1 for both refs and alts
+python2 $pyfilter $dir/x${cov}.var.vcf.vcf 'AD4:1'# | bgzip -c > $dir/x${cov}.candidate2.vcf.gz #filter for at least F or R has 1 for both refs and alts
 #not sure this is dif from filtering just AD
 
 # infer tree
 #fix below to allow for gz
 #python2 $treecall part -m 60 -v 60 -e 30 $dir/$dir.candidate2.vcf.gz $dir/$dir.treecall-pt
-python2 $treecall nbjoin -m 60 -v 60 -e 30 $dir/$dir.candidate2.vcf.gz $dir/$dir.treecall-nj
+python2 $treecall nbjoin -m 60 -v 60 -e 30 $dir/x${cov}.var.vcf.vcf.vcf $dir/x${cov}.treecall
+besttree=$(sort -k 2 ms10i100s35a/x10/x10.treecall.scores.txt | head -1 | cut -f 1 -d ' ')
 
 # treecall genotype
-bcftools view $dir/$dir.bcf | python2 $pyfilter - 'AD:2' | python2 $treecall gtype -t $dir/$dir.treecall-pt.nwk -m 60 -e 30 - $dir/$dir.tc.txt
-awk '$5>0.5' $dir/$dir.tc.txt > $dir/$dir.tc.p50.txt
+bcftools view $dir/x${cov}.bcf | sed 's/Number=[A-Z]/Number=./' | sed 's/,Version=\"3\"//' > $dir/x${cov}.vcf
+python2 $pyfilter $dir/x${cov}.vcf 'AD:2'
+python2 $treecall gtype -t $dir/x${cov}.treecall.${besttree}.tre -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.tc.txt
+awk '$5>0.5' $dir/x${cov}.tc.txt > $dir/x${cov}.tc.p50.txt
 
-bcftools view $dir/$dir.bcf | python2 $pyfilter - 'AD:2' | python2 $treecall gtype -t ms.nwk -m 60 -e 30 - $dir/$dir.ms.txt
-awk '$5>0.5' $dir/$dir.ms.txt > $dir/$dir.ms.p50.txt
+python2 $treecall gtype -t ms.nwk -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.ms.txt
+awk '$5>0.5' $dir/x${cov}.ms.txt > $dir/x${cov}.ms.p50.txt
 echo "treecall done"
 
 # phylip
 mkdir -p phylip
-bcftools view -v snps $dir/$dir.snp.vcf.gz > $dir/$dir.snp.vcf
+bcftools view -v snps $dir/x${cov}.snp.vcf.gz > $dir/x${cov}.snp.vcf
 python2 $mkphylip $dir/$dir.snp.vcf
 cd phylip
 rm -f outtree outfile

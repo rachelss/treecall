@@ -93,7 +93,7 @@ def neighbor_main(args):
             best_tree,best_PL,rerooted = recursive_reroot(best_tree.copy(), PLs,mm0, mm1, base_prior,DELTA)  #why are brlens negative?
             #print(best_tree)
             print('PL_per_site = %.4f' % (best_PL/n_site))
-            best_tree.write(outfile=args.output+'.nj.'+str(i)+'.tre', format=5)
+            best_tree.write(outfile=args.output+'.'+str(i)+'.tre', format=5)
             allscores.append(best_PL)
         i+=1
     
@@ -103,7 +103,7 @@ def neighbor_main(args):
     for i,s in enumerate(allscores):
         fo.write(str(i) + ' ' + str(s) + "\n")
     fo.close
- 
+
 def init_star_tree(n):
     """Creates a tree, adds n children in star with numbers as names
 
