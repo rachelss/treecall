@@ -33,7 +33,7 @@ def read_vcf_records(filename, maxn=1000):
         np.array (double): List of Phred-scaled genotype likelihoods for all 10 possible genotypes
 
     """    
-    print('read next %d sites' % maxn, end = ' ', file=sys.stderr)
+    print('read sites', end = ' ', file=sys.stderr)
     
     vcffile = vcf.Reader(open(filename, 'r'))
     variants,ADs,PLs = [],[],[]
@@ -75,10 +75,6 @@ def read_vcf_records(filename, maxn=1000):
             pl = np.array(pl)
             assert pl.shape == (len(vcffile.samples),10), pl.shape
             PLs.append(pl)
-                
-        if i == maxn:
-            print('... %s:%s ...' % (v.CHROM, v.POS), end=' ', file=sys.stderr)
-            break
 
     variants = np.array(variants)
     PLs = np.array(PLs)
@@ -116,14 +112,9 @@ def genotype_main(args):
     fout.close()
     fout = open(args.output, 'a')
     
-    score = 0
-    while True:
-        variants, DPRs, PLs = read_vcf_records(args.vcf, args.nsite)
-        records,s = genotype(PLs, tree, variants, mm, mm0, mm1, base_prior)
-        np.savetxt(fout, records, fmt=['%s','%d','%s','%.2e','%.2e','%s','%.2e','%s','%s','%.2e','%d','%s'], delimiter='\t')
-        score += s
-        if len(PLs) < args.nsite:
-            break
+    variants, DPRs, PLs = read_vcf_records(args.vcf)
+    records,score = genotype(PLs, tree, variants, mm, mm0, mm1, base_prior)
+    np.savetxt(fout, records, fmt=['%s','%d','%s','%.2e','%.2e','%s','%.2e','%s','%s','%.2e','%d','%s'], delimiter='\t')
     print('sum(PL) = %.2f' % score)
     fout.close()
 
