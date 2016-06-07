@@ -222,7 +222,7 @@ def compare_main(args):
         result['ref_edges_in_source']: compatibility score of the target tree with respect to the source tree (how many edges in reference are found in the source)
         result['source_edges_in_ref']: compatibility score of the source tree with respect to the reference tree (how many edges in source are found in the reference)
         dstat: sum of differences between two distance matrices / sum of ref matrix
-        rstat: 
+        rstat: avg ratio between corresponding pairwise distances
 
     """
     
