@@ -17,7 +17,7 @@ dir="${basefolder}/x${cov}"
 treecall=../treecall.py
 
 python2 $treecall nbjoin -m $mu -v 60 -e 30 $dir/x${cov}.var.vcf.vcf.vcf $dir/x${cov}mu${mu}.treecall  #tree name has mu in it - don't overwrite original mu60
-besttree=$(sort -n -k 2 $dir/x${cov}.treecall.scores.txt | head -1 | cut -f 1 -d ' ')  #scores file doesn't have mu
+besttree=$(sort -n -k 2 $dir/x${cov}mu${mu}.treecall.scores.txt | head -1 | cut -f 1 -d ' ')
 
 # treecall genotype
 python2 $treecall gtype -t $dir/x${cov}mu${mu}.treecall.${besttree}.tre -m $mu -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}mu${mu}.tc.txt
