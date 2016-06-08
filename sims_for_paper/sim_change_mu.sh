@@ -23,6 +23,4 @@ besttree=$(sort -n -k 2 $dir/x${cov}mu${mu}.treecall.scores.txt | head -1 | cut 
 python2 $treecall gtype -t $dir/x${cov}mu${mu}.treecall.${besttree}.tre -m $mu -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}mu${mu}.tc.txt
 awk '$5>0.5' $dir/x${cov}mu${mu}.tc.txt > $dir/x${cov}mu${mu}.tc.p50.txt
 
-mv $dir/x${cov}mu${mu}.treecall.scores.txt $dir/x${cov}mu${mu}.treecall.scores.txt
-
 echo "treecall done"
