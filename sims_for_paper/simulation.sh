@@ -63,13 +63,11 @@ python2 $pyfilter $dir/x${cov}.var.vcf.vcf 'AD4:1'
 # | bgzip -c > $dir/x${cov}.candidate2.vcf.gz #filter for at least F or R has 1 for both refs and alts
 #not sure this is dif from filtering just AD
 
-# infer tree
-#fix below to allow for gz
-#python2 $treecall part -m 60 -v 60 -e 30 $dir/$dir.candidate2.vcf.gz $dir/$dir.treecall-pt
+# --- treecall infer tree --- #
 python2 $treecall nbjoin -m 60 -v 60 -e 30 $dir/x${cov}.var.vcf.vcf.vcf $dir/x${cov}.treecall
 besttree=$(sort -n -k 2 $dir/x${cov}.treecall.scores.txt | head -1 | cut -f 1 -d ' ')
 
-# treecall genotype
+# --- treecall genotyping --- #
 bcftools view $dir/x${cov}.bcf | sed 's/Number=[A-Z]/Number=./' | sed 's/,Version=\"3\"//' > $dir/x${cov}.vcf
 python2 $pyfilter $dir/x${cov}.vcf 'AD:2'
 python2 $treecall gtype -t $dir/x${cov}.treecall.${besttree}.tre -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.tc.txt
@@ -79,25 +77,24 @@ python2 $treecall gtype -t $(dirname $dir)/ms.nwk -m 60 -e 30 $dir/x${cov}.vcf.v
 awk '$5>0.5' $dir/x${cov}.ms.txt > $dir/x${cov}.ms.p50.txt
 echo "treecall done"
 
-# phylip
+# --- get fixed genotypes - var sites --- #
 mkdir -p phylip
 bcftools view -v snps $dir/x${cov}.snp.vcf.gz > $dir/x${cov}.snp.vcf
 python2 $mkphylip $dir/x${cov}.snp.vcf
-rm -f outtree outfile
+
+# -- dnacomp -- #
 echo "$dir/x${cov}.snp.vcf.alignment.phylip" > phylip/phylip_inputs.list
 echo "Y" >> phylip/phylip_inputs.list
-# --- dnaml --- #
-cat phylip/phylip_inputs.list | dnaml
-paste -s outtree | perl -lne 's/s(\d+)/$1-1/ge; s/:[0-9.-]+/:1/g; s/\s//g; s/\[[^\[\]]*\]//g; s/;/;\n/g; print;' > $dir/x${cov}.ml.tree
-head -1 $dir/x${cov}.ml.tree > $dir/x${cov}.ml.tre
-rm -f outtree outfile
-# --- dnacomp --- #
 cat phylip/phylip_inputs.list | dnacomp
 paste -s outtree | perl -lne 's/s(\d+)/$1-1/ge; s/:[0-9.-]+/:1/g; s/\s//g; s/\[[^\[\]]*\]//g; s/;/;\n/g; print;' > $dir/x${cov}.comp.tree
 head -1 $dir/x${cov}.comp.tree > $dir/x${cov}.dnacomp.tre
 rm -f outtree outfile
+echo "dnacomp done"
 
-#fix this
+# --- raxml --- #
+#ascertainment bias correction; ASC_GTRCAT -V = plain GTR
+raxml -s "$dir/x${cov}.snp.vcf.alignment.phylip" -n out -m ASC_GTRCAT -V --asc-corr=lewis -T 4 -p $RANDOM
+
 # --- neighbor --- #
 #echo "$dir.snp.dist" > dist_inputs.list
 #echo "Y" >> dist_inputs.list
@@ -107,4 +104,11 @@ rm -f outtree outfile
 #paste -s outtree | perl -lne 's/s(\d+)/$1-1/ge; s/:[0-9.-]+/:1/g; s/\s//g; s/\[[^\[\]]*\]//g; s/;/;\n/g; print;' > $dir/x${cov}.nj.tree
 #head -1 $dir/x${cov}.nj.tree > $dir/x${cov}.neighbor.tre
 #rm -f outtree outfile
-echo "phylip done"
+
+#don't use dnaml - no way to correct for ascertainment bias
+# --- dnaml --- #
+#cat phylip/phylip_inputs.list | dnaml
+#paste -s outtree | perl -lne 's/s(\d+)/$1-1/ge; s/:[0-9.-]+/:1/g; s/\s//g; s/\[[^\[\]]*\]//g; s/;/;\n/g; print;' > $dir/x${cov}.ml.tree
+#head -1 $dir/x${cov}.ml.tree > $dir/x${cov}.ml.tre
+#rm -f outtree outfile
+#echo "phylip done"
