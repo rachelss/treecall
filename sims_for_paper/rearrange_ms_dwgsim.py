@@ -23,8 +23,8 @@ def get_altbases(refbases):
 
     for r in refbases:
         b=bases[:]
-        pos_base = b.remove(r)
-        newbase = random.choice(pos_base)
+        b.remove(r)
+        newbase = random.choice(b)
         baselist = tuple(sorted([r,newbase]))
         altbases.append(IUPAC[baselist])
     return altbases
