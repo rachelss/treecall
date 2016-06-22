@@ -47,7 +47,7 @@ handle = open('ref/chr22_20-21M.fa', "rU")
 ref = SeqIO.to_dict(SeqIO.parse(handle, "fasta"))
 handle.close()
 
-refbases = get_refbases(ref[ref.keys()[0]].seq,pos)
+refbases = get_refbases(ref['chr22'].seq,pos)
 refbases = [r.upper() for r in refbases]
 altbases = get_altbases(refbases)
 strands = get_strands(altbases)
