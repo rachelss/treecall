@@ -58,9 +58,8 @@ for i in range(num_samp):
     dwgsimfile = open(folder+'/var/'+v+'.variants.txt','w')
     linenum = i-num_samp
     line = msoutput[linenum]
-    line = list(line)
-    for j,h in enumerate(line):
-        if int(h) == 1:
+    for j in range(num_sites):
+        if int(line[j]) == 1:
             #chr    #pos    #refbase    #altbase/iupac  #strand
             dwgsimfile.write("chr22\t"+str(pos[j])+"\t"+refbases[j]+"\t"+altbases[j]+"\t"+str(strands[j]))
     dwgsimfile.close()         
