@@ -16,6 +16,7 @@ for num_samp in 5 10 20; do
             ms $num_samp 1 -s $seg_sites -T > ms${num_samp}i${seg_sites}s${r}r/ms.output
             
             #rearrange data into simulation input
+            mkdir ms${num_samp}i${seg_sites}s${r}r/var
             python2 rearrange_ms_dwgsim.py ms${num_samp}i${seg_sites}s${r}r/ms.output
 
         done
