@@ -61,7 +61,7 @@ for i in range(num_samp):
     for j in range(num_sites):
         if int(line[j]) == 1:
             #chr    #pos    #refbase    #altbase/iupac  #strand
-            dwgsimfile.write("chr22\t"+str(pos[j])+"\t"+refbases[j]+"\t"+altbases[j]+"\t"+str(strands[j])+"\n")
+            dwgsimfile.write("chr22\t"+str(pos[j]+1)+"\t"+refbases[j]+"\t"+altbases[j]+"\t"+str(strands[j])+"\n")
     dwgsimfile.close()         
 
 treefile = open(sys.argv[1].replace('.output','.nwk'),'w')
