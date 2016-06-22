@@ -7,7 +7,7 @@ import os
 def get_pos(poslist):
     """list of positions with mutations"""
     poslist = poslist[1:]
-    poslist = [float(p)*1000000 for p in poslist]
+    poslist = [int(float(p)*1000000) for p in poslist]
     return poslist
 
 def get_refbases(seq,poslist):
