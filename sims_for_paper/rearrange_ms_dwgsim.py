@@ -51,7 +51,7 @@ handle.close()
 refbases = get_refbases(ref['chr22'].seq,pos)
 refbases = [r.upper() for r in refbases]
 altbases = get_altbases(refbases)
-strands = get_strands(altbases)
+strands = get_strands(num_sites)
 
 for i in range(num_samp):
     v = i+1
