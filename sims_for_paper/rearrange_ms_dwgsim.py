@@ -22,7 +22,8 @@ def get_altbases(refbases):
     IUPAC = { ('A','C'):'M', ('A','G'):'R', ('A','T'):'W', ('C','G'):'S', ('C','T'):'Y', ('G','T'):'K' }
 
     for r in refbases:
-        pos_base = bases[:].remove(r)
+        b=bases[:]
+        pos_base = b.remove(r)
         newbase = random.choice(pos_base)
         baselist = tuple(sorted([r,newbase]))
         altbases.append(IUPAC[baselist])
