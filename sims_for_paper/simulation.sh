@@ -18,27 +18,32 @@ treecall=../treecall.py
 pyfilter=find_polymorphic_sites.py
 mkphylip=vcf2seq.py
 
-#phylip tools must be installed and in path dnaml, dnacomp, dnadist, neighbor
+#phylip must be installed and in path for dnacomp
 which dnaml &>/dev/null
     [ $? -eq 0 ] || { echo "Phylip must be installed to run. The installation folder must be in your path. Aborting."; exit 1; }
+which raxml &>/dev/null
+    [ $? -eq 0 ] || { echo "Raxml must be installed to run. The installation folder must be in your path. Aborting."; exit 1; }
 which samtools &>/dev/null
     [ $? -eq 0 ] || { echo "Samtools must be installed to run. The installation folder must be in your path. Aborting."; exit 1; }
+which dwgsim &>/dev/null
+    [ $? -eq 0 ] || { echo "dwgsim must be installed to run. The installation folder must be in your path. Aborting."; exit 1; }
+which bwa &>/dev/null
+    [ $? -eq 0 ] || { echo "bwa must be installed to run. The installation folder must be in your path. Aborting."; exit 1; }
 
-#commented out b/c using previous sims
-## make BAMs
-#for s in $samples
-#do
-#    mkdir -p $dir/$s && dwgsim -c 0 -e 0.005-0.01 -E 0.005-0.01 -1 100 -2 100 -d 350 -s 30 -C $cov -r 0 -m var/$s.variants.txt $ref $dir/$s/$s
-#    rm -f $dir/$s/$s.bfast.*
-#    gzip -f $dir/$s/$s.bwa.read1.fastq
-#    gzip -f $dir/$s/$s.bwa.read2.fastq
-#
-#    header="@RG\\tID:$s\\tSM:s$s"
-#    bwa mem -I350,35 -R$header $ref $dir/$s/$s.bwa.read1.fastq.gz $dir/$s/$s.bwa.read2.fastq.gz | samtools1 sort -o $dir/$s/$s.bam -T $dir/$s/$s -
-#    samtools index $dir/$s/$s.bam
-#done
-#echo "BAMs ready"
-#
+# make BAMs
+for s in $samples
+do
+    mkdir -p $dir/$s && dwgsim -c 0 -e 0.005-0.01 -E 0.005-0.01 -1 100 -2 100 -d 350 -s 30 -C $cov -r 0 -m ${basefolder}/var/$s.variants.txt $ref $dir/$s/$s
+    rm -f $dir/$s/$s.bfast.*
+    gzip -f $dir/$s/$s.bwa.read1.fastq
+    gzip -f $dir/$s/$s.bwa.read2.fastq
+
+    header="@RG\\tID:$s\\tSM:s$s"
+    bwa mem -I350,35 -R$header $ref $dir/$s/$s.bwa.read1.fastq.gz $dir/$s/$s.bwa.read2.fastq.gz | samtools sort -o $dir/$s/$s.bam -T $dir/$s/$s -
+    samtools index $dir/$s/$s.bam
+done
+echo "BAMs ready"
+
 find $dir -name '[1-9]*.bam' | sort -V > $dir/bam.list
 find $dir -name '[0-9]*.bam' | sort -V > $dir/bam0.list
 
@@ -52,19 +57,22 @@ bcftools call -cv -o $dir/x${cov}.snp.vcf.gz -O z ${dir}/x${cov}.bcf   #consensu
 bcftools call -cv -o $dir/0/0.snp.vcf.gz -O z $dir/0/0.bcf
 echo "bcfcall done"
 
-bcftools view -v snps -i 'ADF[0]>0 & ADF[1]>0 & ADR[0]>0 & ADR[1]>0' $dir/x${cov}.bcf | sed 's/Number=[A-Z]/Number=./' | sed 's/,Version=\"3\"//' > $dir/x${cov}.var.vcf #get just snps; reads on both strands to ensure no weird indels - coudl actually test whether prob or quality is same forward or reverse
+#get just snps; reads on both strands to ensure no weird indels - coudl actually test whether prob or quality is same forward or reverse
+#bcftools view -v snps -i 'ADF[0]>0 & ADF[1]>0 & ADR[0]>0 & ADR[1]>0' $dir/x${cov}.bcf | sed 's/Number=[A-Z]/Number=./' | sed 's/,Version=\"3\"//' > $dir/x${cov}.var.vcf
+#not filtering by F and R strands due to sim, which puts mutation on a strand not chr
+bcftools view -v snps $dir/x${cov}.bcf | sed 's/Number=[A-Z]/Number=./' | sed 's/,Version=\"3\"//' > $dir/x${cov}.var.vcf
 # prepare for treecall - output of bcftools view not compatible with vcf.Reader in pyfilter
 python2 $pyfilter $dir/x${cov}.var.vcf 'AD:2;PL:60'
 # > $dir/x${cov}.candidate1.vcf #pipe to filter to check both alleles have more than min reads AND both het and homo present AND likely more than one geno across all samples
 #bgzip -c > $dir/x${cov}.candidate1.vcf.gz  #pipe to zip; Skip lines started with character CHAR. [#]
 
 #fix below to allow for gz
-python2 $pyfilter $dir/x${cov}.var.vcf.vcf 'AD4:1'
+#python2 $pyfilter $dir/x${cov}.var.vcf.vcf 'AD4:1'
 # | bgzip -c > $dir/x${cov}.candidate2.vcf.gz #filter for at least F or R has 1 for both refs and alts
 #not sure this is dif from filtering just AD
 
 # --- treecall infer tree --- #
-python2 $treecall nbjoin -m 60 -v 60 -e 30 $dir/x${cov}.var.vcf.vcf.vcf $dir/x${cov}.treecall
+python2 $treecall nbjoin -m 60 -v 60 -e 30 $dir/x${cov}.var.vcf.vcf $dir/x${cov}.treecall
 besttree=$(sort -n -k 2 $dir/x${cov}.treecall.scores.txt | head -1 | cut -f 1 -d ' ')
 
 # --- treecall genotyping --- #
@@ -94,6 +102,8 @@ echo "dnacomp done"
 # --- raxml --- #
 #ascertainment bias correction; ASC_GTRCAT -V = plain GTR
 raxml -s "$dir/x${cov}.snp.vcf.alignment.phylip" -n out -m ASC_GTRCAT -V --asc-corr=lewis -T 4 -p $RANDOM
+mv RAxML_bestTree.out $dir/x${cov}.ml.tree
+rm RAxML*
 
 # --- neighbor --- #
 #echo "$dir.snp.dist" > dist_inputs.list
