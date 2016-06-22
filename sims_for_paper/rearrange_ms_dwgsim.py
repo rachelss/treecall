@@ -54,7 +54,7 @@ altbases = get_altbases(refbases)
 strands = get_strands(num_sites)
 
 for i in range(num_samp):
-    v = i+1
+    v = str(i+1)
     dwgsimfile = open(folder+'/var/'+v+'.variants.txt','w')
     linenum = i-num_samp
     line = msoutput[linenum]
