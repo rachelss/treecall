@@ -1,6 +1,6 @@
 import sys
 import string
-from random import *
+import random
 from Bio import SeqIO
 import os
 
