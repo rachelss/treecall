@@ -38,10 +38,10 @@ folder = os.path.dirname(sys.argv[1])
 msfile = open(sys.argv[1],'r')
 msoutput = msfile.readlines()
 cmd = msoutput[0].split()
-num_samp = cmd[1]
-num_sites = cmd[4]
+num_samp = int(cmd[1])
+num_sites = int(cmd[4])
 
-pos = get_pos(msfile[5].split())
+pos = get_pos(msoutput[6].split())
 
 ref = SeqIO.parse(open('ref/chr22_20-21M.fa'),'fasta')
 
@@ -63,5 +63,5 @@ for i in range(num_samp):
     dwgsimfile.close()         
 
 treefile = open(sys.argv[1].replace('.output','.nwk'),'w')
-treefile.write(msfile[4])
+treefile.write(msoutput[4])
 treefile.close()
