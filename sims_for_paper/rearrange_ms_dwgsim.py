@@ -43,7 +43,9 @@ num_sites = int(cmd[4])
 
 pos = get_pos(msoutput[6].split())
 
-ref = SeqIO.parse(open('ref/chr22_20-21M.fa'),'fasta')
+handle = open('ref/chr22_20-21M.fa', "rU")
+ref = SeqIO.to_dict(SeqIO.parse(handle, "fasta"))
+handle.close()
 
 refbases = get_refbases(ref[0].seq,pos)
 refbases = [r.upper() for r in refbases]
