@@ -19,7 +19,7 @@ def get_altbases(refbases):
     """ list of IUPAC codes for hets"""
     altbases=[]
     bases = ['A','G','C','T']
-    IUPAC = { (A,C):M, (A,G):R, (A,T):W, (C,G):S, (C,T):Y, (G,T):K }
+    IUPAC = { ('A','C'):'M', ('A','G'):'R', ('A','T'):'W', ('C','G'):'S', ('C','T'):'Y', ('G','T'):'K' }
 
     for r in refbases:
         pos_base = bases[:].remove(r)
