@@ -29,7 +29,7 @@ def get_altbases(refbases):
         altbases.append(IUPAC[baselist])
     return altbases
 
-def get_strand(num_sites):
+def get_strands(num_sites):
     strands = [random.randint(1,2) for i in range(num_sites)]
     return strands
 
