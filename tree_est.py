@@ -93,7 +93,12 @@ def neighbor_main(args):
             best_tree,best_PL,rerooted = recursive_reroot(best_tree.copy(), PLs,mm0, mm1, base_prior,DELTA)  #why are brlens negative?
             #print(best_tree)
             print('PL_per_site = %.4f' % (best_PL/n_site))
-            best_tree.write(outfile=args.output+'.'+str(i)+'.tre', format=5)
+            #replace sample numbers with actual names
+            for node in best_tree.traverse("postorder"):
+                if node.is_leaf():
+                    node.name=vcffile.samples[node.name]
+                
+            best_tree.write(outfile=args.output+'.'+str(i)+'.tre', format=5)  #write best tree
             allscores.append(best_PL)
         i+=1
     
