@@ -104,6 +104,12 @@ def genotype_main(args):
     print(args, file=sys.stderr)
 
     tree = Tree(args.tree)
+    #leaf names need to be from 0 -
+    leaves = tree.get_leaf_names()
+    for node in tree.traverse(strategy='postorder'):
+        if node.is_leaf():
+            node.name = leaves.index(node.name)    
+    
     tree = init_tree(tree)
 
     base_prior = make_base_prior(args.het, GTYPE10) # base genotype prior
@@ -114,12 +120,13 @@ def genotype_main(args):
     fout = open(args.output, 'a')
     
     variants, DPRs, PLs = read_vcf_records(args.vcf)
-    records,score = genotype(PLs, tree, variants, mm, mm0, mm1, base_prior)
+    records,score = genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,leaves)
+    #records are: chrom,pos,ref,null_P,mut_P,MLE_null_base_gtype,MLE_null_base_gtype_P,MLE_mut_base_gtype,MLE_mut_base_gtype_P,MLE_mut_location,MLE_mut_samples
     np.savetxt(fout, records, fmt=['%s','%d','%s','%.2e','%.2e','%s','%.2e','%s','%s','%.2e','%d','%s'], delimiter='\t')
     print('sum(PL) = %.2f' % score)
     fout.close()
 
-def genotype(PLs, tree, variants, mm, mm0, mm1, base_prior):
+def genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,leaves):
     """
     uses populate_tree_PL, calc_mut_likelihoods, phred2p
     """
@@ -158,7 +165,7 @@ def genotype(PLs, tree, variants, mm, mm0, mm1, base_prior):
     null_PLs = np.array([node.PL0 for node in tree.iter_descendants(strategy='postorder')])
     k2 = null_PLs[k1l,nn,].argmin(axis=-1) # get most likely mutation mutant genotype
 
-    node_sids = np.array([','.join(map(str,node.sid)) for node in tree.iter_descendants(strategy='postorder')])
+    node_sids = np.array([','.join(map(str,[leaves[sid] for sid in node.sid])) for node in tree.iter_descendants(strategy='postorder')])
     records = np.array(zip(
             variants[nn,0],                         # chrom
             variants[nn,1],                         # pos
