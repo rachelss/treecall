@@ -110,7 +110,8 @@ def genotype_main(args):
         if node.is_leaf():
             node.name = leaves.index(node.name)    
     
-    tree = init_tree(tree)
+    tree = init_tree(tree)  #tree nodes now have nid and sid where nid is node num from 0-
+                            #sid is node name if leaf (numbered 0-) or names of children if not
 
     base_prior = make_base_prior(args.het, GTYPE10) # base genotype prior
     mm,mm0,mm1 = make_mut_matrix_gtype10(args.mu)#, GTYPE10) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
