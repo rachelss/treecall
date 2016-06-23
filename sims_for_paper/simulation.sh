@@ -19,7 +19,7 @@ pyfilter=find_polymorphic_sites.py
 mkphylip=vcf2seq.py
 
 #phylip must be installed and in path for dnacomp
-which dnaml &>/dev/null
+which dnacomp &>/dev/null
     [ $? -eq 0 ] || { echo "Phylip must be installed to run. The installation folder must be in your path. Aborting."; exit 1; }
 which raxml &>/dev/null
     [ $? -eq 0 ] || { echo "Raxml must be installed to run. The installation folder must be in your path. Aborting."; exit 1; }
@@ -31,9 +31,12 @@ which bwa &>/dev/null
     [ $? -eq 0 ] || { echo "bwa must be installed to run. The installation folder must be in your path. Aborting."; exit 1; }
 
 # make BAMs
-for s in $samples
-do
-    mkdir -p $dir/$s && dwgsim -c 0 -e 0.005-0.01 -E 0.005-0.01 -1 100 -2 100 -d 350 -s 30 -C $cov -r 0 -m ${basefolder}/var/$s.variants.txt $ref $dir/$s/$s
+for s in $samples; do
+    if [[ $s -eq 0 ]]; then
+        mkdir -p $dir/$s && dwgsim -c 0 -e 0.005-0.01 -E 0.005-0.01 -1 100 -2 100 -d 350 -s 30 -C $cov -r 0 $ref $dir/$s/$s
+    else
+        mkdir -p $dir/$s && dwgsim -c 0 -e 0.005-0.01 -E 0.005-0.01 -1 100 -2 100 -d 350 -s 30 -C $cov -r 0 -m ${basefolder}/var/$s.variants.txt $ref $dir/$s/$s
+    fi
     rm -f $dir/$s/$s.bfast.*
     gzip -f $dir/$s/$s.bwa.read1.fastq
     gzip -f $dir/$s/$s.bwa.read2.fastq
