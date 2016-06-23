@@ -125,3 +125,7 @@ rm RAxML*
 #head -1 $dir/x${cov}.ml.tree > $dir/x${cov}.ml.tre
 #rm -f outtree outfile
 #echo "phylip done"
+
+#----remove bam and vcf----#
+rm ${dir}/*/*bam
+rm ${dir}/*vcf
