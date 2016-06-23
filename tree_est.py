@@ -96,7 +96,7 @@ def neighbor_main(args):
             #replace sample numbers with actual names
             for node in best_tree.traverse("postorder"):
                 if node.is_leaf():
-                    node.name=vcffile.samples[node.name]
+                    node.name=vcffile.samples[int(node.name)]
                 
             best_tree.write(outfile=args.output+'.'+str(i)+'.tre', format=5)  #write best tree
             allscores.append(best_PL)
