@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+bwa index ref/chr22_20-21M.fa
+
 rm sim_list.txt
 for num_samp in 5 10 20; do
     for seg_sites in 100 500 1000; do
