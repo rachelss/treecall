@@ -142,42 +142,42 @@ def normalize2d_PL(x):
     r = -10.0*np.log10(p/p.sum(axis=1)[:,None])
     return r
 
-def gtype_distance(gt):
-    """
-    Args:
-        gt(np.array (str)): genotypes as 1d array - usually either GTYPE3 (generic het/homos) or GTYPE10 (all possible gtypes)
-    
-    Return:
-        np.array(int): Levenshtein (string) distance between pairs - eg AA-RR = 2
-    """ 
-    n = len(gt)
-    gt_dist = np.zeros((n,n), dtype=int)
-    for i,gi in enumerate(gt):
-        for j,gj in enumerate(gt):
-            gt_dist[i,j] = min(int(strdist(gi,gj)),int(strdist(gi,gj[::-1])))
-            
-    return gt_dist
-
-def make_mut_matrix(mu, gtypes):
-    """Makes a matrix for genotypes - only depends on mu
-    
-    Args:
-        mu (int): mutation rate in Phred scale, default 80
-        gtypes(np.array (str)): genotypes as 1d array - usually either GTYPE3 (generic het/homos) or GTYPE10 (all possible gtypes)
-        
-    Returns:
-        np.array(float): substitution rate matrix
-        np.array(float): substitution rate matrix with non-diagonal set to 0
-        np.array(float): substitution rate matrix with diagonal set to 0
-    """
-    pmu = phred2p(mu)  #80 -> 10e-08
-    gt_dist = gtype_distance(gtypes) #np.array: Levenshtein (string) distance between pairs - eg AA-RR = 2
-    mm = pmu**gt_dist
-    np.fill_diagonal(mm, 2.0-mm.sum(axis=0))
-    mm0 = np.diagflat(mm.diagonal()) # substitution rate matrix with non-diagonal set to 0
-    mm1 = mm - mm0 # substitution rate matrix with diagonal set to 0
-    
-    return mm,mm0,mm1
+#def gtype_distance(gt):
+#    """
+#    Args:
+#        gt(np.array (str)): genotypes as 1d array - usually either GTYPE3 (generic het/homos) or GTYPE10 (all possible gtypes)
+#    
+#    Return:
+#        np.array(int): Levenshtein (string) distance between pairs - eg AA-RR = 2
+#    """ 
+#    n = len(gt)
+#    gt_dist = np.zeros((n,n), dtype=int)
+#    for i,gi in enumerate(gt):
+#        for j,gj in enumerate(gt):
+#            gt_dist[i,j] = min(int(strdist(gi,gj)),int(strdist(gi,gj[::-1])))
+#            
+#    return gt_dist
+#
+#def make_mut_matrix(mu, gtypes):
+#    """Makes a matrix for genotypes - only depends on mu
+#    
+#    Args:
+#        mu (int): mutation rate in Phred scale, default 80
+#        gtypes(np.array (str)): genotypes as 1d array - usually either GTYPE3 (generic het/homos) or GTYPE10 (all possible gtypes)
+#        
+#    Returns:
+#        np.array(float): substitution rate matrix
+#        np.array(float): substitution rate matrix with non-diagonal set to 0
+#        np.array(float): substitution rate matrix with diagonal set to 0
+#    """
+#    pmu = phred2p(mu)  #80 -> 10e-08
+#    gt_dist = gtype_distance(gtypes) #np.array: Levenshtein (string) distance between pairs - eg AA-RR = 2
+#    mm = pmu**gt_dist
+#    np.fill_diagonal(mm, 2.0-mm.sum(axis=0))
+#    mm0 = np.diagflat(mm.diagonal()) # substitution rate matrix with non-diagonal set to 0
+#    mm1 = mm - mm0 # substitution rate matrix with diagonal set to 0
+#    
+#    return mm,mm0,mm1
 
 def make_mut_matrix_gtype3(mu):
     """same as above assuming gtype3 and w correct string distance for double mutation"""
