@@ -271,9 +271,9 @@ def tree2adjacency(tree,leaf_idx):
     m = len(leaves)
     adjmat = np.zeros(shape=(m,m), dtype=int)
     for l1 in leaves:  #leaf names are not in numeric order
-        i = leaf_idx[l1]
+        i = leaf_idx[l1.name]
         for l2 in leaves:
-            j = leaf_idx[l2]
+            j = leaf_idx[l2.name]
             adjmat[i,j] = l1.get_distance(l2, topology_only=True)
     return adjmat.astype(float)
 
