@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+rm treecomp.txt
+
 bwa index ref/chr22_20-21M.fa
 
 rm sim_list.txt
