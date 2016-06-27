@@ -228,9 +228,15 @@ def compare_main(args):
     
     print(args, file=sys.stderr)
     ref_tree = Tree(args.ref)
-    ref_am = tree2adjacency(ref_tree)   #matrix of "distances" for ref (node counts)
+    ref_tree_leafnames = [l.name for l in ref_tree.get_leaves()]
+    leaf_idx = {l:i for i,l in enumerate(ref_tree_leafnames)}  #how to get int for leaf name consistent btwn trees
+    
+    ref_am = tree2adjacency(ref_tree,leaf_idx)   #matrix of "distances" for ref (node counts)
     for f in args.tree:
         tree = Tree(f)
+        tree_leafnames = [l.name for l in tree.get_leaves()]
+        if set(tree_leafnames) != set(ref_tree_leafnames):
+            print('leaf names are not the same', file=sys.stderr)
         am = tree2adjacency(tree)   #matrix of "distances" for comparison
         if ref_am.shape != am.shape:
             print('%s incompatible with %s' % (f, args.ref), file=sys.stderr)
@@ -250,7 +256,7 @@ def compare_main(args):
             print('%s\t%.3f\t%.3f\t%.3f\t%.3f\t%.3f' % (f, result['norm_rf'], result['ref_edges_in_source'], result['source_edges_in_ref'], dstat, rstat))
 
 
-def tree2adjacency(tree):
+def tree2adjacency(tree,leaf_idx):
     """Get the number of nodes between leaves formatted as np array
 
     Args:
@@ -264,10 +270,10 @@ def tree2adjacency(tree):
     leaves = tree.get_leaves()
     m = len(leaves)
     adjmat = np.zeros(shape=(m,m), dtype=int)
-    for l1 in leaves:
-        i = int(l1.name)
+    for l1 in leaves:  #leaf names are not in numeric order
+        i = leaf_idx[l1]
         for l2 in leaves:
-            j = int(l2.name)
+            j = leaf_idx[l2]
             adjmat[i,j] = l1.get_distance(l2, topology_only=True)
     return adjmat.astype(float)
 
