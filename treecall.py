@@ -237,7 +237,7 @@ def compare_main(args):
         tree_leafnames = [l.name for l in tree.get_leaves()]
         if set(tree_leafnames) != set(ref_tree_leafnames):
             print('leaf names are not the same', file=sys.stderr)
-        am = tree2adjacency(tree)   #matrix of "distances" for comparison
+        am = tree2adjacency(tree,leaf_idx)   #matrix of "distances" for comparison
         if ref_am.shape != am.shape:
             print('%s incompatible with %s' % (f, args.ref), file=sys.stderr)
         else:
