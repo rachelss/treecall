@@ -56,6 +56,9 @@ def neighbor_main(args):
 
     D = make_D(PLs)  # pairwise differences between samples based only on PLs (should include mutation, but also shouldn't matter)
     allscores = []
+    
+    fo = open(args.output+'.scores.txt','w')
+    
     for i in range(n_smpl+2):  #10 different starting trees
         print('Tree '+str(i+1)+' of '+str(n_smpl+2))
         tree = init_star_tree(n_smpl)
@@ -100,14 +103,12 @@ def neighbor_main(args):
                     node.name=vcffile.samples[int(node.name)]
                 
             best_tree.write(outfile=args.output+'.'+str(i)+'names.tre', format=5)  #write best tree
+            fo.write(str(i) + ' ' + str(best_PL) + "\n")
             allscores.append(best_PL)
         i+=1
     
     print(allscores)
     
-    fo = open(args.output+'.scores.txt','w')
-    for i,s in enumerate(allscores):
-        fo.write(str(i) + ' ' + str(s) + "\n")
     fo.close
 
 def init_star_tree(n):
