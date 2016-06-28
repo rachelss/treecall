@@ -38,7 +38,7 @@ for num_samp in 5 10 20; do
                 dir="${basefolder}/x${cov}"
                 
                 cat phylip/phylip_inputs${basefolder}${cov}.list | dnacomp
-                sed 's/s//g' <outtree >$dir/x${cov}.dnacomp_num.tre
+                cat outtree | tr '\n' '@' | sed 's/,@/,/g' | tr '@' '\n' | head -1 | sed 's/s//g' | sed 's/\[.*\]//' >$dir/x${cov}.dnacomp_num.tre  #get rid of weird newlines, get first tree, just num names
                 rm -f outfile
                 rm -f outtree
                 
