@@ -27,3 +27,26 @@ for num_samp in 5 10 20; do
 done
 
 cat sim_list.txt | parallel -j $1
+
+rm treecomp.txt
+# -- dnacomp and compare trees-- #
+for num_samp in 5 10 20; do
+    for seg_sites in 100 500 1000; do
+        for cov in 5 7 10 15 20 30 40 50; do
+            for r in {1..10}; do
+                basefolder=ms${num_samp}i${seg_sites}s${r}r
+                dir="${basefolder}/x${cov}"
+                
+                cat phylip/phylip_inputs${basefolder}${N}${cov}.list | dnacomp
+                mv outtree $dir/x${cov}.dnacomp.tre
+                sed 's/s//g' <$dir/x${cov}.dnacomp.tre >$dir/x${cov}.dnacomp_num.tre
+                rm -f outfile
+                
+                for testtree in $dir/x${cov}.ml_num.tre $dir/x${cov}.dnacomp_num.tre $dir/x${cov}.treecall_num.tre; do
+                    python2 ../treecall.py compare -t $testtree -r ${basefolder}/ms.nwk >> treecomp.txt
+                done
+            done
+        done
+    done
+done
+echo "dnacomp done"
