@@ -8,13 +8,14 @@ from collections import Counter
 def get_pos(poslist):
     """list of positions with mutations"""
     poslist = poslist[1:]
+    poslist = [float(p) for p in poslist]
     #change duplicate mutations
     p_counts = Counter(poslist)
     for k,v in p_counts.iteritems():
         if v > 1:
             posinlist = poslist.index(k)
             poslist[posinlist]=poslist[posinlist]-0.00001
-    poslist = [int(float(p)*1000000) for p in poslist]
+    poslist = [int(p*1000000) for p in poslist]
     return poslist
 
 def get_refbases(seq,poslist):
