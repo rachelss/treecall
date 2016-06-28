@@ -77,11 +77,12 @@ python2 $pyfilter $dir/x${cov}.var.vcf 'AD:2;PL:60'
 # --- treecall infer tree --- #
 python2 $treecall nbjoin -m 60 -v 60 -e 30 $dir/x${cov}.var.vcf.vcf $dir/x${cov}.treecall
 besttree=$(sort -n -k 2 $dir/x${cov}.treecall.scores.txt | head -1 | cut -f 1 -d ' ')
+sed 's/s//g' <$dir/x${cov}.treecall.${besttree}names.tre >$dir/x${cov}.treecall_num.tre
 
 # --- treecall genotyping --- #
 bcftools view $dir/x${cov}.bcf | sed 's/Number=[A-Z]/Number=./' | sed 's/,Version=\"3\"//' > $dir/x${cov}.vcf
 python2 $pyfilter $dir/x${cov}.vcf 'AD:2'
-python2 $treecall gtype -t $dir/x${cov}.treecall.${besttree}.tre -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.tc.txt
+python2 $treecall gtype -t $dir/x${cov}.treecall.${besttree}names.tre -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.tc.txt
 awk '$5>0.5' $dir/x${cov}.tc.txt > $dir/x${cov}.tc.p50.txt
 
 python2 $treecall gtype -t $(dirname $dir)/ms.nwk -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.ms.txt
@@ -94,19 +95,28 @@ bcftools view -v snps $dir/x${cov}.snp.vcf.gz > $dir/x${cov}.snp.vcf
 python2 $mkphylip $dir/x${cov}.snp.vcf
 
 # -- dnacomp -- #
-echo "$dir/x${cov}.snp.vcf.alignment.phylip" > phylip/phylip_inputs.list
-echo "Y" >> phylip/phylip_inputs.list
-cat phylip/phylip_inputs.list | dnacomp
-paste -s outtree | perl -lne 's/s(\d+)/$1-1/ge; s/:[0-9.-]+/:1/g; s/\s//g; s/\[[^\[\]]*\]//g; s/;/;\n/g; print;' > $dir/x${cov}.comp.tree
-head -1 $dir/x${cov}.comp.tree > $dir/x${cov}.dnacomp.tre
-rm -f outtree outfile
+echo "$dir/x${cov}.snp.vcf.alignment.phylip" > phylip/phylip_inputs${basefolder}${N}${cov}.list
+echo "Y" >> phylip/phylip_inputs${basefolder}${N}${cov}.list
+cat phylip/phylip_inputs${basefolder}${N}${cov}.list | dnacomp
+mv outtree $dir/x${cov}.dnacomp.tre
+sed 's/s//g' <$dir/x${cov}.dnacomp.tre >$dir/x${cov}.dnacomp_num.tre
+rm -f outfile
 echo "dnacomp done"
 
 # --- raxml --- #
 #ascertainment bias correction; ASC_GTRCAT -V = plain GTR
-raxml -s "$dir/x${cov}.snp.vcf.alignment.phylip" -n out -m ASC_GTRCAT -V --asc-corr=lewis -T 4 -p $RANDOM
-mv RAxML_bestTree.out $dir/x${cov}.ml.tree
-rm RAxML*
+raxml -s "$dir/x${cov}.snp.vcf.alignment.phylip" -n out${basefolder}${N}${cov} -m ASC_GTRCAT -V --asc-corr=lewis -T 4 -p $RANDOM
+sed 's/s//g' <RAxML_bestTree.out${basefolder}${N}${cov} >$dir/x${cov}.ml_num.tre
+rm RAxML*out${basefolder}${N}${cov}*
+
+##################
+#Compare trees
+for testtree in $dir/x${cov}.ml_num.tre $dir/x${cov}.dnacomp_num.tre $dir/x${cov}.treecall_num.tre; do
+    python2 ../treecall.py compare -t $testtree -r ${basefolder}/ms.nwk >> treecomp.txt
+done
+
+##################
+
 
 # --- neighbor --- #
 #echo "$dir.snp.dist" > dist_inputs.list
