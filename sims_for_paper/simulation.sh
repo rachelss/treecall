@@ -95,27 +95,14 @@ bcftools view -v snps $dir/x${cov}.snp.vcf.gz > $dir/x${cov}.snp.vcf
 python2 $mkphylip $dir/x${cov}.snp.vcf
 
 # -- dnacomp -- #
-echo "$dir/x${cov}.snp.vcf.alignment.phylip" > phylip/phylip_inputs${basefolder}${N}${cov}.list
-echo "Y" >> phylip/phylip_inputs${basefolder}${N}${cov}.list
-cat phylip/phylip_inputs${basefolder}${N}${cov}.list | dnacomp
-mv outtree $dir/x${cov}.dnacomp.tre
-sed 's/s//g' <$dir/x${cov}.dnacomp.tre >$dir/x${cov}.dnacomp_num.tre
-rm -f outfile
-echo "dnacomp done"
+echo "$dir/x${cov}.snp.vcf.alignment.phylip" > phylip/phylip_inputs${basefolder}${cov}.list
+echo "Y" >> phylip/phylip_inputs${basefolder}${cov}.list
 
 # --- raxml --- #
 #ascertainment bias correction; ASC_GTRCAT -V = plain GTR
-raxml -s "$dir/x${cov}.snp.vcf.alignment.phylip" -n out${basefolder}${N}${cov} -m ASC_GTRCAT -V --asc-corr=lewis -T 4 -p $RANDOM
-sed 's/s//g' <RAxML_bestTree.out${basefolder}${N}${cov} >$dir/x${cov}.ml_num.tre
-rm RAxML*out${basefolder}${N}${cov}*
-
-##################
-#Compare trees
-for testtree in $dir/x${cov}.ml_num.tre $dir/x${cov}.dnacomp_num.tre $dir/x${cov}.treecall_num.tre; do
-    python2 ../treecall.py compare -t $testtree -r ${basefolder}/ms.nwk >> treecomp.txt
-done
-
-##################
+raxml -s "$dir/x${cov}.snp.vcf.alignment.phylip" -n out${basefolder}${cov} -m ASC_GTRCAT -V --asc-corr=lewis -T 4 -p $RANDOM
+sed 's/s//g' <RAxML_bestTree.out${basefolder}${cov} >$dir/x${cov}.ml_num.tre
+rm RAxML*out${basefolder}${cov}*
 
 
 # --- neighbor --- #
