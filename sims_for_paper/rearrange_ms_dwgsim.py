@@ -3,10 +3,17 @@ import string
 import random
 from Bio import SeqIO
 import os
+from collections import Counter
 
 def get_pos(poslist):
     """list of positions with mutations"""
     poslist = poslist[1:]
+    #change duplicate mutations
+    p_counts = Counter(poslist)
+    for k,v in p_counts.iteritems():
+        if v > 1:
+            posinlist = poslist.index(k)
+            poslist[posinlist]=poslist[posinlist]-0.00001
     poslist = [int(float(p)*1000000) for p in poslist]
     return poslist
 
