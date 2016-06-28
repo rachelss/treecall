@@ -37,10 +37,10 @@ for num_samp in 5 10 20; do
                 basefolder=ms${num_samp}i${seg_sites}s${r}r
                 dir="${basefolder}/x${cov}"
                 
-                cat phylip/phylip_inputs${basefolder}${N}${cov}.list | dnacomp
-                mv outtree $dir/x${cov}.dnacomp.tre
-                sed 's/s//g' <$dir/x${cov}.dnacomp.tre >$dir/x${cov}.dnacomp_num.tre
+                cat phylip/phylip_inputs${basefolder}${cov}.list | dnacomp
+                sed 's/s//g' <outtree >$dir/x${cov}.dnacomp_num.tre
                 rm -f outfile
+                rm -f outtree
                 
                 for testtree in $dir/x${cov}.ml_num.tre $dir/x${cov}.dnacomp_num.tre $dir/x${cov}.treecall_num.tre; do
                     python2 ../treecall.py compare -t $testtree -r ${basefolder}/ms.nwk >> treecomp.txt
