@@ -57,5 +57,5 @@ if __name__ == '__main__':
 
     outfile = open(path + '/var/true.spgt.txt','w')
     for k in sorted(gt):
-        print('\t'.join(k.split(':') + gt[k]))
+        outfile.write('\t'.join(k.split(':') + gt[k]))
     outfile.close()
