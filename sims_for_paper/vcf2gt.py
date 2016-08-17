@@ -43,7 +43,7 @@ if __name__ == '__main__':
                 find_geno = {0:s[0]+s[0], 1:''.join(sorted(s[0]+s[1])), 2:s[1]+s[1], 3:''.join(sorted(s[0]+s[2])), 4:''.join(sorted(s[1]+s[2])), 5:s[2]+s[2], 6:''.join(sorted(s[0]+s[3])), 7:''.join(sorted(s[1]+s[3])), 8:''.join(sorted(s[2]+s[3])), 9:s[3]+s[3]}
 
             gt = [iupac_lookup[find_geno[v.genotype(sample).gt_type]] for sample in vcffile.samples]  #this variant; each sample; iupac of genotype as 0/1/2 converted to bases
-                
+            print(gt)    
               
             outfile.write('\t'.join((v.CHROM,str(v.POS),v.REF,'\t'.join(gt))))
     outfile.close()
