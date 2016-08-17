@@ -55,5 +55,7 @@ if __name__ == '__main__':
                 assert site in gt, 'site not found'
                 gt[site][i+1] = alt
 
+    outfile = open(path + '/var/true.spgt.txt','w')
     for k in sorted(gt):
-        print('\t'.join([k] + gt[k]))
+        print('\t'.join(k.split(':') + gt[k]))
+    outfile.close()
