@@ -6,18 +6,19 @@ import os
 from collections import Counter
 
 def get_pos(poslist):
-    """list of positions with mutations"""
+    """list of positions with mutations - change duplicates as necessary"""
     poslist = poslist[1:]
     poslist = [float(p) for p in poslist]
+    
     #change duplicate mutations
     p_counts = Counter(poslist)
     for k,v in p_counts.iteritems():
         while v > 1:
             v = v-1
-            pos_index = poslist.index(k)  #get position that is duplicate
-            poslist[pos_index+v] = k + (v*0.00001)     #change last of duplicate positions by adding a little        
+            pos_index = poslist.index(k) + v  #get last position that is duplicate
+            poslist[pos_index] = k + (v*0.00001)     #change last of duplicate positions by adding a little        
     poslist = [int(p*1000000) for p in poslist]
-    assert len(poslist) > len(set(poslist)), 'duplicate mutations at a position'
+    assert len(poslist) == len(set(poslist)), 'duplicate mutations at a position'
     return poslist
 
 def get_refbases(seq,poslist):
