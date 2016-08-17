@@ -59,7 +59,6 @@ if __name__ == '__main__':
     for k in sorted(gt):
         linetowrite = [k[0], str(k[1])]
         linetowrite.extend(gt[k])
-        print(linetowrite)
         outfile.write('\t'.join(linetowrite))
         outfile.write("\n")
     outfile.close()
