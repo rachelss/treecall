@@ -45,6 +45,7 @@ if __name__ == '__main__':
             gt[i-1] = alt
             
         outfile.write('\t'.join((chrom,pos,base,'\t'.join(gt))))
+        outfile.write("\n")
 
     f.close()
     outfile.close() 
