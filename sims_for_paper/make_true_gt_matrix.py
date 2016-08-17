@@ -30,8 +30,8 @@ def init_matrix(dwgsim_input, n_sample, n_snpsite):
     with open(dwgsim_input) as f:
         for line in f:
             chrom,pos,ref,alt = line.rstrip().split()
-            site = chrom+':'+pos
-            true_gtype[site] = [ref]*(n_sample+1)
+            pos = int(pos)
+            true_gtype[(chrom,pos)] = [ref]*(n_sample+1)
     return true_gtype
 
 if __name__ == '__main__':
@@ -51,12 +51,12 @@ if __name__ == '__main__':
         with open(sample_input) as f:
             for line in f:
                 chrom,pos,ref,alt,code = line.rstrip().split()
-                site = chrom+':'+pos
-                assert site in gt, 'site not found'
-                gt[site][i+1] = alt
+                pos = int(pos)
+                assert (chrom,pos) in gt, 'site not found'
+                gt[(chrom,pos)][i+1] = alt
 
     outfile = open(path + '/var/true.spgt.txt','w')
     for k in sorted(gt):
-        outfile.write('\t'.join(k.split(':') + gt[k]))
+        outfile.write('\t'.join([k[0], str(k[1]), gt[k]]))
         outfile.write("\n")
     outfile.close()
