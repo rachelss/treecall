@@ -24,6 +24,8 @@ iupac_lookup = {
 if __name__ == '__main__':
     if len(sys.argv) < 3:
         usage()
+    
+    outfile = open(sys.argv[2],'w')  
         
     bases = ['A','C','G','T']
     vcffile = vcf.Reader(open(sys.argv[1], 'r'))
@@ -42,6 +44,8 @@ if __name__ == '__main__':
 
             gt = [iupac_lookup[find_geno[v.genotype(sample).gt_type]] for sample in vcffile.samples]  #this variant; each sample; iupac of genotype as 0/1/2 converted to bases
                 
-            print('\t'.join((v.CHROM,v.POS,v.REF,'\t'.join(gt))))
+              
+            outfile.write('\t'.join((v.CHROM,str(v.POS),v.REF,'\t'.join(gt))))
+    outfile.close()
 
     vcffile.close()
