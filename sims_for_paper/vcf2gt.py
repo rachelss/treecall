@@ -46,6 +46,5 @@ if __name__ == '__main__':
             print(gt)    
               
             outfile.write('\t'.join((v.CHROM,str(v.POS),v.REF,'\t'.join(gt))))
+            outfile.write("\n")
     outfile.close()
-
-    vcffile.close()
