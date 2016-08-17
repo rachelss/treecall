@@ -18,8 +18,8 @@ def init_matrix(dwgsim_input, n_sample, n_snpsite):
     
     args:
         file with lines of
-            chr22   4901    T       K       2
-            chr     pos     ref     alt_het strand
+            chr22   4901    T       K       
+            chr     pos     ref     alt_het 
         number of samples (int)
         number of snps (int)
     
@@ -45,7 +45,7 @@ if __name__ == '__main__':
 
     allvars = path + '/var/allvars.txt'
 
-    gt,snps = init_matrix(allvars, n_sample, n_snpsite)
+    gt = init_matrix(allvars, n_sample, n_snpsite)
     for i in range(n_sample):
         sample_input = path+'/var/'+str(i+1)+'.variants.txt'
         with open(sample_input) as f:
