@@ -15,6 +15,7 @@ Usage: %s <input> <outfile>
     sys.exit(0)
 
 iupac_lookup = {
+    'AA':'A', 'CC':'C','GG':'G','TT':'T',
     'AG':'R', 'CT':'Y', 'CG':'S',
     'AT':'W', 'GT':'K', 'AC':'M',
     'CGT':'B', 'AGT':'D', 'ACT':'H', 'ACG':'V'
