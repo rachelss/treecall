@@ -12,10 +12,12 @@ def get_pos(poslist):
     #change duplicate mutations
     p_counts = Counter(poslist)
     for k,v in p_counts.iteritems():
-        if v > 1:
-            posinlist = poslist.index(k)
-            poslist[posinlist]=poslist[posinlist]-0.00001
+        while v > 1:
+            v = v-1
+            pos_index = poslist.index(k)  #get position that is duplicate
+            poslist[pos_index+v] = k + (v*0.00001)     #change last of duplicate positions by adding a little        
     poslist = [int(p*1000000) for p in poslist]
+    assert len(poslist) > len(set(poslist)), 'duplicate mutations at a position'
     return poslist
 
 def get_refbases(seq,poslist):
