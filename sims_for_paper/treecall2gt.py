@@ -42,7 +42,7 @@ if __name__ == '__main__':
         mut_sidx = map(int, mut_smpl.replace('s','').split(','))
         gt = [base]*n_sample
         for i in mut_sidx:
-            gt[i] = alt
+            gt[i-1] = alt
             
         outfile.write('\t'.join((chrom,pos,base,'\t'.join(gt))))
 
