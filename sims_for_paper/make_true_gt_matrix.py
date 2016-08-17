@@ -57,7 +57,7 @@ if __name__ == '__main__':
 
     outfile = open(path + '/var/true.spgt.txt','w')
     for k in sorted(gt):
-        linetowrite = [k[0], str(k[1]), gt[k]]
+        linetowrite = [k[0], str(k[1])].extend(gt[k])
         print(linetowrite)
         outfile.write('\t'.join(linetowrite))
         outfile.write("\n")
