@@ -1,102 +1,46 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 from __future__ import print_function
-
 import sys
 from os.path import basename as basename
-from string import maketrans
-import numpy as np
-from memoize import memoized
 import signal
 signal.signal(signal.SIGPIPE, signal.SIG_DFL) 
+import vcf
 
-from pyvcf import Vcf, VcfFile
-
-def usage(mesg=None):
-    if mesg is not None:
-        print(mesg)
+def usage():
     print('''
-Usage: %s <input> [sidx_range] [format]
-<input> : a vcf or vcf.gz or '-' for stdin
-[sidx_range]: sample index range, 0-based in pythonic style, e.g "0:4" means the first 3 samples
-[format]: matrix/long, default matrix
+Usage: %s <input> <outfile>
+<input> : a vcf or vcf.gz
 ''' % basename(sys.argv[0]))
     sys.exit(0)
 
-fmt_choices = {'fasta', 'phylip'}
 iupac_lookup = {
-    'A,G':'R', 'C,T':'Y', 'C,G':'S',
-    'A,T':'W', 'G,T':'K', 'A,C':'M',
-    'C,G,T':'B', 'A,G,T':'D', 'A,C,T':'H', 'A,C,G':'V'
+    'AG':'R', 'CT':'Y', 'CG':'S',
+    'AT':'W', 'GT':'K', 'AC':'M',
+    'CGT':'B', 'AGT':'D', 'ACT':'H', 'ACG':'V'
 }
-gt_delim = maketrans('|', '/')
-
-@memoized
-def make_gcode(ref, alt):
-    global iupac_lookup
-    allele = [ref] + alt.split(',')
-    n = len(allele)
-    gcode = []
-    for i in xrange(n):
-        for j in xrange(i+1):
-            if i==j:
-                gcode.append(allele[i])
-            else:
-                het = ','.join(sorted([allele[j],allele[i]]))
-                gcode.append(iupac_lookup[het])
-    return gcode
-
-
-def get_gt(v, vf):
-    global gt_delim
-    if v.ALT == '':
-        return [v.REF]*len(vf.samples)
-    else:
-        gcode = make_gcode(v.REF, v.ALT)
-        if 'GT' in vf.fmt:
-            gt = v.extract_gtype('GT', vf.fmt)
-            idx = np.sum(np.array([g.translate(gt_delim).split('/') for g in gt]).astype(np.int), axis=1)
-        elif 'PL' in vf.fmt:
-            idx = np.argmin(np.array(v.extract_gtype('PL', vf.fmt, str.split, ',')).astype(np.int), axis=1)
-        return [gcode[i] for i in idx]
-
-
 
 if __name__ == '__main__':
-    if len(sys.argv) < 2:
+    if len(sys.argv) < 3:
         usage()
-
-    vcffile = VcfFile(sys.argv[1])
-
-    if len(sys.argv) > 2:
-        sidx = sys.argv[2]
-    else:
-        sidx = None
-
-    if len(sys.argv) > 3:
-        out_fmt = sys.argv[3]
-    else:
-        out_fmt = 'matrix'
-
-    vcffile.open()
-
-    samples = vcffile.samples
-    if sidx is not None:
-        samples = eval('samples['+sidx+']',{'samples':samples,'os':None}) # precaution that 'os.system("rm -rf /")' won't happen
-    #N = len(samples)
-    sites = []
-    gt_codes = []
+        
+    bases = ['A','C','G','T']
+    vcffile = vcf.Reader(open(sys.argv[1], 'r'))
     for v in vcffile:
-        if v.REF == 'N' or v.ALT == '' or v.extract_info('INDEL') is not None:
-            pass
-        else:
-            gt = get_gt(v, vcffile)
-            if sidx is not None:
-                gt = eval('gt['+sidx+']',{'gt':gt,'os':None}) # precaution that 'os.system("rm -rf /")' won't happen
-            site = (v.CHROM,v.POS)
-            if out_fmt == 'matrix':
-                print('\t'.join((v.CHROM,v.POS,v.REF,'\t'.join(gt))))
-            else:
-                for s,g in zip(samples,gt):
-                    print('\t'.join((v.CHROM,v.POS,v.REF,s,g)))
+        if v.REF in bases and v.ALT[0] in bases:  #check snp
+            s = [str(b) for b in v.ALT if str(b) in bases] #filter X - ie list of alt bases
+            s.insert(0,str(v.REF)) #put ref in front of base list
+            
+            #dict to convert gt numbers to bases
+            if len(s) == 2:
+                find_geno = {0:s[0]+s[0], 1:''.join(sorted(s[0]+s[1])), 2:s[1]+s[1]}
+            elif len(s) == 3:
+                find_geno = {0:s[0]+s[0], 1:''.join(sorted(s[0]+s[1])), 2:s[1]+s[1], 3:''.join(sorted(s[0]+s[2])), 4:''.join(sorted(s[1]+s[2])), 5:s[2]+s[2]}
+            elif len(s) == 4:
+                find_geno = {0:s[0]+s[0], 1:''.join(sorted(s[0]+s[1])), 2:s[1]+s[1], 3:''.join(sorted(s[0]+s[2])), 4:''.join(sorted(s[1]+s[2])), 5:s[2]+s[2], 6:''.join(sorted(s[0]+s[3])), 7:''.join(sorted(s[1]+s[3])), 8:''.join(sorted(s[2]+s[3])), 9:s[3]+s[3]}
+
+            gt = [iupac_lookup[find_geno[v.genotype(sample).gt_type]] for sample in vcffile.samples]  #this variant; each sample; iupac of genotype as 0/1/2 converted to bases
+                
+            print('\t'.join((v.CHROM,v.POS,v.REF,'\t'.join(gt))))
+
     vcffile.close()
