@@ -20,7 +20,7 @@ warnings.filterwarnings('error')
 
 from utils import *
 
-def read_vcf_records(filename, maxn=1000):
+def read_vcf_records(leaves, filename, maxn=1000):
     """Read vcf file - get info about variants - need to clarify how this is different from read_vcf
 
     Args:
@@ -46,7 +46,7 @@ def read_vcf_records(filename, maxn=1000):
         if v.REF in bases and v.ALT[0] in bases:
             variants.append((v.CHROM,v.POS,v.REF))
             #ad for each sample for each allele
-            ad = np.array([v.genotype(s).data.AD for s in vcffile.samples], dtype=np.uint16)                
+            ad = np.array([v.genotype(s).data.AD for s in leaves], dtype=np.uint16)         #this gets data in leaf num order not order in vcf file       
             ADs.append(ad)
             
             s = [str(b) for b in v.ALT if str(b) in bases] #filter X
@@ -60,7 +60,7 @@ def read_vcf_records(filename, maxn=1000):
                 find_geno = {0:s[0]+s[0], 1:''.join(sorted(s[0]+s[1])), 2:s[1]+s[1], 3:''.join(sorted(s[0]+s[2])), 4:''.join(sorted(s[1]+s[2])), 5:s[2]+s[2], 6:''.join(sorted(s[0]+s[3])), 7:''.join(sorted(s[1]+s[3])), 8:''.join(sorted(s[2]+s[3])), 9:s[3]+s[3]}
                              
             #get pl for ref and alts
-            pl = [v.genotype(s).data.PL for s in vcffile.samples]  #list of lists
+            pl = [v.genotype(s).data.PL for s in leaves]  #list of lists
             for j,p in enumerate(pl):
                 pl_dict = {'AA':255,'AC':255,'AG':255,'AT':255,'CC':255,'CG':255,'CT':255,'GG':255,'GT':255,'TT':255} #all genos are unlikely
                 
@@ -94,7 +94,7 @@ def genotype_main(args):
     Args:
         vcf: input vcf/vcf.gz file, "-" for stdin
         output: output basename
-        tree: file containing lineage tree'
+        tree: file containing lineage tree
         nsite: number of sites processed once, default 1000
         mu: mutation rate in Phred scale, default 80
         het: heterozygous rate in Phred scale, default 30, 0 for uninformative
@@ -108,7 +108,9 @@ def genotype_main(args):
     leaves = tree.get_leaf_names()
     for node in tree.traverse(strategy='postorder'):
         if node.is_leaf():
-            node.name = leaves.index(node.name)    
+            node.name = leaves.index(node.name)    #a way of numbering the nodes b/c they may have names
+    leaves_dict = {l:i for i,l in enumerate(leaves)}  #dict of real name:number
+    leaves_dict2 = {i:l for i,l in enumerate(leaves)}  #dict of number: real name
     
     tree = init_tree(tree)  #tree nodes now have nid and sid where nid is node num from 0-
                             #sid is node name if leaf (numbered 0-) or names of children if not
@@ -120,7 +122,7 @@ def genotype_main(args):
     fout.close()
     fout = open(args.output, 'a')
     
-    variants, DPRs, PLs = read_vcf_records(args.vcf)
+    variants, DPRs, PLs = read_vcf_records(leaves, args.vcf)
     records,score = genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,leaves)
     #records are: chrom,pos,ref,null_P,mut_P,MLE_null_base_gtype,MLE_null_base_gtype_P,MLE_mut_base_gtype,MLE_mut_base_gtype_P,MLE_mut_location,MLE_mut_samples
     np.savetxt(fout, records, fmt=['%s','%d','%s','%.2e','%.2e','%s','%.2e','%s','%s','%.2e','%d','%s'], delimiter='\t')
