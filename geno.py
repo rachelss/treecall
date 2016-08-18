@@ -36,6 +36,7 @@ def read_vcf_records(leaves, filename, maxn=1000):
     print('read sites', end = ' ', file=sys.stderr)
     
     vcffile = vcf.Reader(open(filename, 'r'))
+    assert set(leaves)==set(vcffile.samples), 'leaf names != sample names: '+' '.join(leaves)+', '+ ' '.join(vcffile.samples)
     variants,ADs,PLs = [],[],[]
     bases = ['A','C','G','T']
     i = 0
