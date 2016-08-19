@@ -1,7 +1,5 @@
 #!/usr/bin/env bash
 
-rm treecomp.txt
-
 bwa index ref/chr22_20-21M.fa
 
 rm sim_list.txt
@@ -49,4 +47,37 @@ for num_samp in 5 10 20; do
         done
     done
 done
-echo "dnacomp done"
+echo "dnacomp and tree comparisons done"
+
+sed 's/ms//g' <treecomp.txt | sed 's/i/ /g' | sed 's/s/ /g' | sed 's/_num.tre//g' | sed 's/r / /g' | sed 's/\/x[0-9]*\./ /g' | sed 's/r\/x/ /g' | tr '\t' ' ' >treecomp2.txt
+
+# -- run plot_treecomp_rf.R -- #
+
+
+# -- compare genotypes -- #
+rm eval_list.txt
+for num_samp in 5 10 20; do
+    for seg_sites in 100 500 1000; do
+        for r in {1..10}; do
+            basefolder=ms${num_samp}i${seg_sites}s${r}r
+            
+            #get all true variants by combining variants for individuals
+            #output looks like
+            #chr22   301     T       K
+            cat "${basefolder}"/var/*.variants.txt | sort -n -k2 | uniq | cut -f 1,2,3,4 > "${basefolder}"/var/allvars.txt
+            
+            #get true genotypes
+            #output file is lines of
+            #chr22   140     G       G       R       G       G       G       G       G       G       G       G
+            ./make_true_gt_matrix.py $basefolder $num_same $seg_sites  #writes to "${basefolder}"/var/true.spgt.txt
+
+            for cov in 5 7 10 15 20 30 40 50; do                               
+                echo bash evaluate2.sh $basefolder $num_samp $cov $seg_sites >> eval_list.txt
+            done
+        done
+    done
+done
+cat eval_list.txt | parallel -j $1
+cat */*/gt_comparisons.txt > gt_comparisons.txt
+echo "genotype comparisons done"
+

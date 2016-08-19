@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 #output file is lines of
 #chr22   140     G       G       R       G       G       G       G       G       G       G       G

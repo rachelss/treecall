@@ -78,16 +78,20 @@ python2 $pyfilter $dir/x${cov}.var.vcf 'AD:2;PL:60'
 python2 $treecall nbjoin -m 60 -v 60 -e 30 $dir/x${cov}.var.vcf.vcf $dir/x${cov}.treecall
 besttree=$(sort -n -k 2 $dir/x${cov}.treecall.scores.txt | head -1 | cut -f 1 -d ' ')
 sed 's/s//g' <$dir/x${cov}.treecall.${besttree}names.tre >$dir/x${cov}.treecall_num.tre
+echo "treecall done"
 
-# --- treecall genotyping --- #
+# --- treecall genotyping on best tree--- #
 bcftools view $dir/x${cov}.bcf | sed 's/Number=[A-Z]/Number=./' | sed 's/,Version=\"3\"//' > $dir/x${cov}.vcf
 python2 $pyfilter $dir/x${cov}.vcf 'AD:2'
 python2 $treecall gtype -t $dir/x${cov}.treecall.${besttree}names.tre -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.tc.txt
 awk '$5>0.5' $dir/x${cov}.tc.txt > $dir/x${cov}.tc.p50.txt
+echo "genotypes estimated on treecall tree"
 
-python2 $treecall gtype -t $(dirname $dir)/ms.nwk -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.ms.txt
+# --- treecall genotyping on ms tree--- #
+sed 's/\([0-9][0-9]*:\)/s\1/g' <$(dirname $dir)/ms.nwk > $(dirname $dir)/ms2.nwk  #match tree names and vcf sample names by adding s in front of numbers
+python2 $treecall gtype -t $(dirname $dir)/ms2.nwk -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.ms.txt
 awk '$5>0.5' $dir/x${cov}.ms.txt > $dir/x${cov}.ms.p50.txt
-echo "treecall done"
+echo "genotypes estimated on ms tree"
 
 # --- get fixed genotypes - var sites --- #
 mkdir -p phylip
