@@ -127,8 +127,21 @@ rm RAxML*out${basefolder}${cov}*
 #rm -f outtree outfile
 #echo "phylip done"
 
+#-N Number of same-patient samples to analyse (required)
+n=`cat $sim/x$cov/bam0.list | wc -l`
+#--fasta Reference fasta file
+#--medianT Median depth of coverage in tumour samples
+#--medianN Median depth of coverage in normal sample
+#--bam List of bam files. Place normal bam file FIRST!
+#-d Minimum required depth (in normal and as an average across all samples)
+d=`echo $cov/2 | bc`  #divides cov / 2
+if [ $d -gt 5 ]; then 
+    d=5
+fi
+#-f name of VCF output file
+multiSNV -N$n --fasta ref/chr22_20-21M.fa --medianN $cov --medianT $cov -f $sim/x$cov/x$cov.multiSNV.vcf -d $d --bam $(cat $sim/x$cov/bam0.list |tr '\n' ' ')
 
 
 #----remove bam and vcf----#
 rm ${dir}/*/*bam
-rm ${dir}/*vcf
+#rm ${dir}/*vcf
