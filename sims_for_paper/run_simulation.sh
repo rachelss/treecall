@@ -54,6 +54,9 @@ sed 's/ms//g' <treecomp.txt | sed 's/i/ /g' | sed 's/s/ /g' | sed 's/_num.tre//g
 # -- run plot_treecomp_rf.R -- #
 
 
+# -- run multiSNV -- #
+./msnv.sh 
+
 # -- compare genotypes -- #
 rm eval_list.txt
 for num_samp in 5 10 20; do
@@ -69,7 +72,7 @@ for num_samp in 5 10 20; do
             #get true genotypes
             #output file is lines of
             #chr22   140     G       G       R       G       G       G       G       G       G       G       G
-            ./make_true_gt_matrix.py $basefolder $num_same $seg_sites  #writes to "${basefolder}"/var/true.spgt.txt
+            ./make_true_gt_matrix.py $basefolder $num_samp $seg_sites  #writes to "${basefolder}"/var/true.spgt.txt
 
             for cov in 5 7 10 15 20 30 40 50; do                               
                 echo bash evaluate2.sh $basefolder $num_samp $cov $seg_sites >> eval_list.txt

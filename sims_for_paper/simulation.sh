@@ -6,7 +6,7 @@ cov=$2  #coverage
 ref=$3  #reference for simulation and alignment
 basefolder=$4  #folder containing simulations
 
-if [ "$ref" = "" ]
+if [ "$basefolder" = "" ]
 then
     echo "usage: $0 <N> <cov> <ref> <basefolder>"
     exit 0
@@ -126,6 +126,21 @@ rm RAxML*out${basefolder}${cov}*
 #head -1 $dir/x${cov}.ml.tree > $dir/x${cov}.ml.tre
 #rm -f outtree outfile
 #echo "phylip done"
+
+# --- multisnv --- #
+#-N Number of same-patient samples to analyse (required)
+n=`cat $dir/bam0.list | wc -l`
+#--fasta Reference fasta file
+#--medianT Median depth of coverage in tumour samples
+#--medianN Median depth of coverage in normal sample
+#--bam List of bam files. Place normal bam file FIRST!
+#-d Minimum required depth (in normal and as an average across all samples)
+d=`echo $cov/2 | bc`  #divides cov / 2
+if [ $d -gt 5 ]; then 
+    d=5
+fi
+#-f name of VCF output file
+multiSNV -N$n --fasta $ref --medianN $cov --medianT $cov -f $dir/x$cov.multiSNV.vcf -d $d --bam $(cat $dir/bam0.list |tr '\n' ' ')
 
 #----remove bam and vcf----#
 rm ${dir}/*/*bam
