@@ -25,7 +25,7 @@ t=30
 bcftools view -v snps $sim/x$cov/x$cov.snp.vcf.gz | awk -v t=$t '$1~/^#/ || $6>t' > $sim/x$cov/bcftools_est.vcf
 ./vcf2gt.py $sim/x$cov/bcftools_est.vcf $sim/x$cov/est.spgt.bcf.txt  #infile outfile
 results=`./compare_gt_matrix.py "${sim}"/var/true.spgt.txt $sim/x$cov/est.spgt.bcf.txt $nt`  #values for precision and recall
-echo "$n_sample $nt $cov    bcftools    $results" >> gt_comparisons.txt
+echo "$n_sample $nt $cov    bcftools    $results" >> $sim/x$cov/gt_comparisons.txt
 
 #---- compare bcftools+filter on root ----#
 awk 'NR==FNR{a[$2];next} !($2 in a)' $sim/x$cov/0/varsites.txt $sim/x$cov/est.spgt.bcf.txt > $sim/x$cov/est.spgt.bcffilt.txt
@@ -34,8 +34,22 @@ results=`./compare_gt_matrix.py "${sim}"/var/true.spgt.txt $sim/x$cov/est.spgt.b
 echo "$n_sample $nt $cov    bcftools+filter    $results" >> $sim/x$cov/gt_comparisons.txt
 
 #---- multisnv ----#
-cat $sim/x$cov/x$cov.multiSNV.vcf | awk '$1~/^#/ || $7!~/LOW_QUAL/' > $sim/x$cov/x$cov.multiSNV.vcf
-./vcf2gt.py $sim/x$cov/x$cov.multiSNV.vcf $sim/x$cov/est.spgt.msnv.txt
+#-N Number of same-patient samples to analyse (required)
+n=`cat $sim/x$cov/bam0.list | wc -l`
+#--fasta Reference fasta file
+#--medianT Median depth of coverage in tumour samples
+#--medianN Median depth of coverage in normal sample
+#--bam List of bam files. Place normal bam file FIRST!
+#-d Minimum required depth (in normal and as an average across all samples)
+d=`echo $cov/2 | bc`  #divides cov / 2
+if [ $d -gt 5 ]; then 
+    d=5
+fi
+#-f name of VCF output file
+multiSNV -N$n --fasta ref/chr22_20-21M.fa --medianN $cov --medianT $cov -f $sim/x$cov/x$cov.multiSNV.vcf -d $d --bam $(cat $sim/x$cov/bam0.list |tr '\n' ' ')
+
+cat $sim/x$cov/x$cov.multiSNV.vcf | awk '$1~/^#/ || $7!~/LOW_QUAL/' > $sim/x$cov/x$cov.multiSNV2.vcf
+./vcf2gt.py $sim/x$cov/x$cov.multiSNV2.vcf $sim/x$cov/est.spgt.msnv.txt
 cat $sim/x$cov/est.spgt.msnv.txt|cut -f1-3,5- > $sim/x$cov/est.spgt.msnv2.txt  #remove sample 0
 results=`./compare_gt_matrix.py "${sim}"/var/true.spgt.txt $sim/x$cov/est.spgt.msnv2.txt $nt`
 echo "$n_sample $nt $cov    msnv    $results" >> $sim/x$cov/gt_comparisons.txt
