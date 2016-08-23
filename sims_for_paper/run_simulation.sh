@@ -52,10 +52,7 @@ echo "dnacomp and tree comparisons done"
 sed 's/ms//g' <treecomp.txt | sed 's/i/ /g' | sed 's/s/ /g' | sed 's/_num.tre//g' | sed 's/r / /g' | sed 's/\/x[0-9]*\./ /g' | sed 's/r\/x/ /g' | tr '\t' ' ' >treecomp2.txt
 
 # -- run plot_treecomp_rf.R -- #
-
-
-# -- run multiSNV -- #
-./msnv.sh 
+ 
 
 # -- compare genotypes -- #
 rm eval_list.txt
