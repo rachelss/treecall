@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-if [ "$1 = "" ]; then
+if [ -z "$1" ]; then
     echo "usage: $0 <processors>"
     exit
 fi
