@@ -1,5 +1,10 @@
 #!/usr/bin/env bash
 
+if [ "$1 = "" ]; then
+    echo "usage: $0 <processors>"
+    exit
+fi
+
 bwa index ref/chr22_20-21M.fa
 
 rm sim_list.txt
