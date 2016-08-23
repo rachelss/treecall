@@ -144,4 +144,6 @@ multiSNV -N$n --fasta $ref --medianN $cov --medianT $cov -f $dir/x$cov.multiSNV.
 
 #----remove bam and vcf----#
 rm ${dir}/*/*bam
-#rm ${dir}/*vcf
+rm ${dir}/*.var.vcf
+rm ${dir}/*.snp.vcf
+rm ${dir}/*.vcf.vcf
