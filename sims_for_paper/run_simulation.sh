@@ -56,8 +56,8 @@ echo "dnacomp and tree comparisons done"
 
 sed 's/ms//g' <treecomp.txt | sed 's/i/ /g' | sed 's/s/ /g' | sed 's/_num.tre//g' | sed 's/r / /g' | sed 's/\/x[0-9]*\./ /g' | sed 's/r\/x/ /g' | tr '\t' ' ' >treecomp2.txt
 
-# -- run plot_treecomp_rf.R -- #
- 
+# -- plot comparisons of tree success -- #
+Rscript plot_treecomp_rf.R 
 
 # -- compare genotypes -- #
 rm eval_list.txt
@@ -83,6 +83,38 @@ for num_samp in 5 10 20; do
     done
 done
 cat eval_list.txt | parallel -j $1
-cat */*/gt_comparisons.txt > gt_comparisons.txt
+cat */*/gt_comparisons.txt |sort -n|uniq > gt_comparisons2.txt
 echo "genotype comparisons done"
+
+# -- plot comparisons of genotyping success -- #
+#cat gt_comparisons.txt|sort -n|uniq >gt_comparisons2.txt
+Rscript plot_gt.R
+
+
+#simulations with allelic dropout (ado)
+#identical to regular simulations, but
+#add sites that are het for all samples
+#then each added site has some probability of looking like a homozygote
+#and only use sites for which ado occured
+
+rm sim_list.txt
+for num_samp in 5 10 20; do
+    seg_sites=500
+    for r in {1..10}; do
+        mkdir -p ms${num_samp}i${seg_sites}s${r}rHET/var
+        for f in ms${num_samp}i${seg_sites}s${r}r/var/*s.txt; do cp $f ms${num_samp}i${seg_sites}s${r}rHET/var; done  #copy var files
+        ./add_hets.py ms${num_samp}i${seg_sites}s${r}rHET/var
+        
+        #insert ADO here
+        
+        for cov in 5 7 10 15 20 30 40 50; do
+            
+            
+            echo bash simulation.sh $num_samp $cov ref/chr22_20-21M.fa ms${num_samp}i${seg_sites}s${r}r >> sim_list.txt
+        done
+    done
+
+done
+
+cat sim_list.txt | parallel -j $1
 
