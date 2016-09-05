@@ -2,6 +2,7 @@
 
 import sys
 import random
+import glob
 from rearrange_ms_dwgsim import get_refbases,get_altbases,get_strands
     
 filelist = glob.glob(sys.argv[1]+'/*variants.txt')
