@@ -22,6 +22,8 @@ availablesites = list(set(varsites) ^ set(range(1000000)))  #Return a new set wi
 #pick hets
 num_new_hets = int(sys.argv[2])
 newvar = random.sample(availablesites, num_new_hets)  #number of hets needed
+for v in newvar:
+    assert type(v) is int, v + 'is not an int'
 
 #get ref/alt data for new hets
 handle = open('ref/chr22_20-21M.fa', "rU")
