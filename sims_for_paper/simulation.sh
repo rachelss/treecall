@@ -32,10 +32,10 @@ which bwa &>/dev/null
 
 # make BAMs
 for s in $samples; do
-    if [[ $s -eq 0 ]]; then
-        mkdir -p $dir/$s && dwgsim -c 0 -e 0.005-0.01 -E 0.005-0.01 -1 100 -2 100 -d 350 -s 30 -C $cov -r 0 $ref $dir/$s/$s
-    else
+    if [[ -e ${basefolder}/var/$s.variants.txt ]]; then  #there's a var file - not always the case for 0
         mkdir -p $dir/$s && dwgsim -c 0 -e 0.005-0.01 -E 0.005-0.01 -1 100 -2 100 -d 350 -s 30 -C $cov -r 0 -m ${basefolder}/var/$s.variants.txt $ref $dir/$s/$s
+    else
+        mkdir -p $dir/$s && dwgsim -c 0 -e 0.005-0.01 -E 0.005-0.01 -1 100 -2 100 -d 350 -s 30 -C $cov -r 0 $ref $dir/$s/$s
     fi
     rm -f $dir/$s/$s.bfast.*
     gzip -f $dir/$s/$s.bwa.read1.fastq
