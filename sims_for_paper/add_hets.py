@@ -36,5 +36,5 @@ for f in filelist:
     #lines look like: chr22   39401   T       K       1
     f2 = open(f,'a')
     for i,b in enumerate(newvar):
-        f2.write("chr22\t"+str(b)+"\t"+refbases[i]+"\t"+altbases[i]+"\t"+str(strands[i])+"\n")
+        f2.write("chr22\t"+str(b+1)+"\t"+refbases[i]+"\t"+altbases[i]+"\t"+str(strands[i])+"\n")
     f2.close()
