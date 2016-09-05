@@ -14,7 +14,7 @@ filelist.append(path+'/0.variants.txt')
 #list of variant sites
 with open(path+'/allvars.txt') as f:
     #lines look like: chr22   39401   T       K
-    varsites = [line.split()[1] for line in f]  #just pos
+    varsites = [int(line.split()[1]) for line in f]  #just pos
 
 #invariant sites available to be hets       
 availablesites = list(set(varsites) ^ set(range(1000000)))  #Return a new set with elements in either the set or other but not both.
@@ -23,7 +23,7 @@ availablesites = list(set(varsites) ^ set(range(1000000)))  #Return a new set wi
 num_new_hets = int(sys.argv[2])
 newvar = random.sample(availablesites, num_new_hets)  #number of hets needed
 for v in newvar:
-    assert type(v) is int, v + 'is not an int'
+    assert type(v) is int, v + ' is not an int'
 
 #get ref/alt data for new hets
 handle = open('ref/chr22_20-21M.fa', "rU")
