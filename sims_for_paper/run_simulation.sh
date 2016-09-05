@@ -93,10 +93,7 @@ Rscript plot_gt.R
 
 #simulations with allelic dropout (ado)
 #identical to regular simulations, but
-#add sites that are het for all samples
-#then each added site has some probability of looking like a homozygote
-#and only use sites for which ado occured
-
+#first add sites that are het for all samples
 rm sim_list.txt
 for num_samp in 5 10 20; do
     seg_sites=500
@@ -105,16 +102,12 @@ for num_samp in 5 10 20; do
         for f in ms${num_samp}i${seg_sites}s${r}r/var/*s.txt; do cp $f ms${num_samp}i${seg_sites}s${r}rHET/var; done  #copy var files
         ./add_hets.py ms${num_samp}i${seg_sites}s${r}rHET/var
         
-        #insert ADO here
-        
-        for cov in 5 7 10 15 20 30 40 50; do
-            
-            
-            echo bash simulation.sh $num_samp $cov ref/chr22_20-21M.fa ms${num_samp}i${seg_sites}s${r}r >> sim_list.txt
+        for cov in 5 7 10 15 20 30 40 50; do           
+            echo bash simulation.sh $num_samp $cov ref/chr22_20-21M.fa ms${num_samp}i${seg_sites}s${r}rHET >> sim_list.txt
         done
     done
-
 done
 
 cat sim_list.txt | parallel -j $1
 
+#now each added site has some probability of looking like a homozygote
