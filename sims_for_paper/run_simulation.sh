@@ -101,6 +101,7 @@ for num_samp in 5 10 20; do
         mkdir -p ms${num_samp}i${seg_sites}s${r}rHET/var
         for f in ms${num_samp}i${seg_sites}s${r}r/var/*s.txt; do cp $f ms${num_samp}i${seg_sites}s${r}rHET/var; done  #copy var files
         ./add_hets.py ms${num_samp}i${seg_sites}s${r}rHET/var 50
+        ln ms${num_samp}i${seg_sites}s${r}r/ms.nwk ms${num_samp}i${seg_sites}s${r}rHET
         
         for cov in 5 7 10 15 20 30 40 50; do           
             echo bash simulation.sh $num_samp $cov ref/chr22_20-21M.fa ms${num_samp}i${seg_sites}s${r}rHET >> sim_list.txt
