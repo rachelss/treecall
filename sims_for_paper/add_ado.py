@@ -35,7 +35,7 @@ for fname in filelist:
         #check if ADO
         if random.random()<=probADO:
             splitline = line.split()
-            bps = extract2(splineline[3])
+            bps = extract2(splitline[3])
             splitline[3] = random.choice(bps) #pick one of two to keep (ie one to drop)
         f2.write("\t".join(line))
     f2.close()
