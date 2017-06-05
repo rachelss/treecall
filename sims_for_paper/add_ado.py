@@ -28,10 +28,10 @@ for fname in filelist:
     flines = f.readlines()
     #lines look like: chr22   39401   T       K       1
     #first lines aren't hets in root
-    for line in flines[0:-probADO]:
+    for line in flines[0:-numhets]:
         f2.write(line)
     #remaining lines are het in root - ADO allowed
-    for line in flines[-probADO:]:
+    for line in flines[-numhets:]:
         #check if ADO
         if random.random()<=probADO:
             splitline = line.split()
