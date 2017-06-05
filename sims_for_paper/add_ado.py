@@ -26,16 +26,16 @@ for fname in filelist:
     f = open(fname,'r')
     f2 = open(fname.replace('HET','ADO'),'w')
     flines = f.readlines()
-        #lines look like: chr22   39401   T       K       1
-        #first lines aren't hets in root
-        for line in flines[0:-probADO]:
-            f2.write(line)
-        #remaining lines are het in root - ADO allowed
-        for line in flines[-probADO:]:
-            #check if ADO
-            if random.random()<=probADO:
-                splitline = line.split()
-                bps = extract2(splineline[3])
-                splitline[3] = random.choice(bps) #pick one of two to keep (ie one to drop)
-            f2.write("\t".join(line)
+    #lines look like: chr22   39401   T       K       1
+    #first lines aren't hets in root
+    for line in flines[0:-probADO]:
+        f2.write(line)
+    #remaining lines are het in root - ADO allowed
+    for line in flines[-probADO:]:
+        #check if ADO
+        if random.random()<=probADO:
+            splitline = line.split()
+            bps = extract2(splineline[3])
+            splitline[3] = random.choice(bps) #pick one of two to keep (ie one to drop)
+        f2.write("\t".join(line)
     f2.close()
