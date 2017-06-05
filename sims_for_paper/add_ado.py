@@ -39,5 +39,7 @@ for fname in filelist:
             splitline = line.split("\t")
             bps = extract2(splitline[3])
             splitline[3] = random.choice(bps) #pick one of two to keep (ie one to drop)
-        f2.write("\t".join(splitline))
+            f2.write("\t".join(splitline))
+        else:
+            f2.write(line)
     f2.close()
