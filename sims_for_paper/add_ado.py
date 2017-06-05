@@ -34,7 +34,7 @@ for fname in filelist:
     for line in flines[-numhets:]:
         #check if ADO
         if random.random()<=probADO:
-            splitline = line.split()
+            splitline = line.split("\t")
             bps = extract2(splitline[3])
             splitline[3] = random.choice(bps) #pick one of two to keep (ie one to drop)
         f2.write("\t".join(line))
