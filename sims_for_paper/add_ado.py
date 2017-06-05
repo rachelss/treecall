@@ -33,7 +33,9 @@ for fname in filelist:
     #remaining lines are het in root - ADO allowed
     for line in flines[-numhets:]:
         #check if ADO
-        if random.random()<=probADO:
+        p = random.random()
+        print(p)
+        if p<=probADO:
             splitline = line.split("\t")
             bps = extract2(splitline[3])
             splitline[3] = random.choice(bps) #pick one of two to keep (ie one to drop)
