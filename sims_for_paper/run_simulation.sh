@@ -115,6 +115,8 @@ cat sim_list.txt | parallel -j $1
 #now each added site has some probability of looking like a homozygote
 rm sim_list.txt
 probADO=0.15
+#ADO rate: https://www.fluidigm.com/binaries/content/documents/fluidigm/marketing/single-cell-whole-genome-sequencing-on-the-c1-system-a-performance-evaluation-tn-100-9879/single-cell-whole-genome-sequencing-on-the-c1-system-a-performance-evaluation-tn-100-9879/fluidigm%3Afile
+
 for num_samp in 5 10 20; do
     seg_sites=500
     for r in {1..10}; do
@@ -123,11 +125,10 @@ for num_samp in 5 10 20; do
         ln ms${num_samp}i${seg_sites}s${r}rHET/var/0.variants.txt ms${num_samp}i${seg_sites}s${r}rADO/var
         #cp files and add ADO
         ./add_ado.py ms${num_samp}i${seg_sites}s${r}r ${probADO} ${num_new_hets} #input prob of ADO and num root hets
-        #ADO rate: https://www.fluidigm.com/binaries/content/documents/fluidigm/marketing/single-cell-whole-genome-sequencing-on-the-c1-system-a-performance-evaluation-tn-100-9879/single-cell-whole-genome-sequencing-on-the-c1-system-a-performance-evaluation-tn-100-9879/fluidigm%3Afile
         ln ms${num_samp}i${seg_sites}s${r}r/ms.nwk ms${num_samp}i${seg_sites}s${r}rADO
 
         for cov in 5 7 10 15 20 30 40 50; do
-            echo bash simulation.sh $num_samp $cov ref/chr22_20-21M.fa ms${num_samp}i${seg_sites}s${r}rHET >> sim_list.txt
+            echo bash simulation.sh $num_samp $cov ref/chr22_20-21M.fa ms${num_samp}i${seg_sites}s${r}rADO >> sim_list.txt
         done
     done
 done
