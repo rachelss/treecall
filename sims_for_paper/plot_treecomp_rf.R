@@ -16,16 +16,16 @@ rf_summary<-ddply(rf, c("num_samples", "seg_sites", "cov","method"), summarise,
 
 colnames(rf_summary)[5]<-"mean_rf"
 
-p <- ggplot(rf_summary, aes(x=cov, y=mean_rf, colour=method)) + 
+p <- ggplot(rf_summary, aes(x=cov, y=mean_rf, colour=method)) +
   facet_grid(seg_sites ~ num_samples) +
-  geom_point(aes(shape=method)) +  ylim(0, .6) + 
+  geom_point(aes(shape=method)) +  ylim(0, .6) +
   theme(legend.position="top", legend.title=element_blank(), legend.key = element_blank())
-  
+
 ggsave("./treecomp_rf.pdf", plot = p, width = 6.5, height = 9, dpi = 300)
 
-p <- ggplot(subset(rf_summary,rf_summary$seg_sites==100), aes(x=cov, y=mean_rf, colour=method)) + 
+p <- ggplot(subset(rf_summary,rf_summary$seg_sites==100), aes(x=cov, y=mean_rf, colour=method)) +
   facet_grid(seg_sites ~ num_samples) +
-  geom_point(aes(shape=method)) + geom_line(aes(shape=method)) + ylim(0, .6) + 
+  geom_point(aes(shape=method)) + geom_line(aes(shape=method)) + ylim(0, .6) +
   theme(legend.position="top", legend.title=element_blank(), legend.key = element_blank())
 
 ggsave("./treecomp_rf.pdf", plot = p, width = 6.5, height = 3, dpi = 300)
