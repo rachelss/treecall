@@ -34,7 +34,6 @@ for fname in filelist:
     for line in flines[-numhets:]:
         #check if ADO
         p = random.random()
-        print(p)
         if p<=probADO:
             splitline = line.split("\t")
             bps = extract2(splitline[3])
