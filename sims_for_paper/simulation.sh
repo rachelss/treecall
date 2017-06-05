@@ -32,10 +32,10 @@ which bwa &>/dev/null
 
 # make BAMs
 for s in $samples; do
-    if [[ $s -eq 0 ]]; then
-        mkdir -p $dir/$s && dwgsim -c 0 -e 0.005-0.01 -E 0.005-0.01 -1 100 -2 100 -d 350 -s 30 -C $cov -r 0 $ref $dir/$s/$s
-    else
+    if [[ -e ${basefolder}/var/$s.variants.txt ]]; then  #there's a var file - not always the case for 0
         mkdir -p $dir/$s && dwgsim -c 0 -e 0.005-0.01 -E 0.005-0.01 -1 100 -2 100 -d 350 -s 30 -C $cov -r 0 -m ${basefolder}/var/$s.variants.txt $ref $dir/$s/$s
+    else
+        mkdir -p $dir/$s && dwgsim -c 0 -e 0.005-0.01 -E 0.005-0.01 -1 100 -2 100 -d 350 -s 30 -C $cov -r 0 $ref $dir/$s/$s
     fi
     rm -f $dir/$s/$s.bfast.*
     gzip -f $dir/$s/$s.bwa.read1.fastq
@@ -88,8 +88,8 @@ awk '$5>0.5' $dir/x${cov}.tc.txt > $dir/x${cov}.tc.p50.txt
 echo "genotypes estimated on treecall tree"
 
 # --- treecall genotyping on ms tree--- #
-sed 's/\([0-9][0-9]*:\)/s\1/g' <$(dirname $dir)/ms.nwk > $(dirname $dir)/ms2.nwk  #match tree names and vcf sample names by adding s in front of numbers
-python2 $treecall gtype -t $(dirname $dir)/ms2.nwk -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.ms.txt
+sed 's/\([0-9][0-9]*:\)/s\1/g' <${basefolder}/ms.nwk > ${basefolder}/ms2.nwk  #match tree names and vcf sample names by adding s in front of numbers
+python2 $treecall gtype -t ${basefolder}/ms2.nwk -m 60 -e 30 $dir/x${cov}.vcf.vcf $dir/x${cov}.ms.txt
 awk '$5>0.5' $dir/x${cov}.ms.txt > $dir/x${cov}.ms.p50.txt
 echo "genotypes estimated on ms tree"
 
