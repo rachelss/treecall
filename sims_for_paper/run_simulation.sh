@@ -134,3 +134,28 @@ for num_samp in 5 10 20; do
 done
 
 cat sim_list.txt | parallel -j $1
+
+rm treecomp.txt
+# -- dnacomp and compare trees-- #
+for num_samp in 5 10 20; do
+    seg_sites=500
+    for cov in 5 7 10 15 20 30 40 50; do
+        for r in {1..10}; do
+            basefolder=ms${num_samp}i${seg_sites}s${r}rADO
+            dir="${basefolder}/x${cov}"
+
+            cat phylip/phylip_inputs${basefolder}${cov}.list | dnacomp
+            cat outtree | tr '\n' '@' | sed 's/,@/,/g' | tr '@' '\n' | head -1 | sed 's/s//g' | sed 's/\[.*\]//' >$dir/x${cov}.dnacomp_num.tre  #get rid of weird newlines, get first tree, just num names
+            rm -f outfile
+            rm -f outtree
+
+            for testtree in $dir/x${cov}.ml_num.tre $dir/x${cov}.dnacomp_num.tre $dir/x${cov}.treecall_num.tre; do
+                python2 ../treecall.py compare -t $testtree -r ${basefolder}/ms.nwk >> treecomp.txt
+            done
+        done
+    done
+done
+echo "dnacomp and tree comparisons done"
+
+sed 's/ms//g' <treecomp.txt | sed 's/i/ /g' | sed 's/s/ /g' | sed 's/_num.tre//g' | sed 's/r / /g' | sed 's/\/x[0-9]*\./ /g' | sed 's/rADO\/x/ /g' | tr '\t' ' ' >treecomp2.txt
+Rscript plot_gt.R

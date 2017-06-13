@@ -2,6 +2,7 @@ library(ggplot2)
 library(reshape2)
 library(plyr)
 
+args <- commandArgs(trailingOnly = TRUE)
 rf = read.delim("./treecomp2.txt",sep = " ", header=FALSE)
 colnames(rf)<-c("num_samples","seg_sites","rep","cov","method","rf_dist","ref_edge_in_tree","tree_edge_in_ref","diff_adj","ratio_adj")
 rf$num_samples<-factor(rf$num_samples)
@@ -26,7 +27,7 @@ p <- ggplot(rf_summary, aes(x=cov, y=mean_rf, colour=method)) +
   theme(legend.position="top", legend.title=element_blank(), legend.key = element_blank()) +
   xlab("Coverage Depth") + ylab("Mean RF Distance")
 
-ggsave("./treecomp_rf.pdf", plot = p, width = 6.5, height = 9, dpi = 300)
+ggsave(paste0("./treecomp_rf",args[1],".pdf"), plot = p, width = 6.5, height = 9, dpi = 300)
 
 p2 <- ggplot(rf_summary, aes(x=cov, y=mean_ra, colour=method)) +
   facet_grid(seg_sites ~ num_samples, labeller=labeller(num_samples = samplelabels, seg_sites=sitelabels)) +
@@ -34,7 +35,7 @@ p2 <- ggplot(rf_summary, aes(x=cov, y=mean_ra, colour=method)) +
   theme(legend.position="top", legend.title=element_blank(), legend.key = element_blank()) +
   xlab("Coverage Depth") + ylab("Mean RA Distance")
 
-ggsave("./treecomp_ra.pdf", plot = p2, width = 6.5, height = 9, dpi = 300)
+ggsave(paste0("./treecomp_ra",args[1],".pdf"), plot = p2, width = 6.5, height = 9, dpi = 300)
 
 #p <- ggplot(subset(rf_summary,rf_summary$seg_sites==100), aes(x=cov, y=mean_rf, colour=method)) +
 #  facet_grid(seg_sites ~ num_samples) +
