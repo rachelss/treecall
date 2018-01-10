@@ -204,13 +204,15 @@ def annotate_main(args):
     #number leaves to correspond to vcf file and gtcall file
     for node in tree.traverse(strategy='postorder'):
         if node.is_leaf():
-            node.name = samplenames.index(node.name)  
+            node.name = samplenames.index(node.name)    
     tree = init_tree(tree)
 
     gtcall = read_gtcall(args.gtcall)
     for node in tree.iter_descendants('postorder'):
         k = gtcall['mut_smpl'] == ','.join(map(str,node.sid))
-        node.dist = k.sum()
+        node.dist = k.sum()     #add number of mutations as distance on tree
+        if node.is_leaf():
+            node.name=samplenames[int(node.name)]  #convert leaves back to names
     tree.write(outfile=args.output, format=5)
 
 
