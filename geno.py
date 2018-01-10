@@ -120,9 +120,10 @@ def genotype_main(args):
     mm,mm0,mm1 = make_mut_matrix_gtype10(args.mu)#, GTYPE10) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
 
     fout = open(args.output, 'w')
-    fout.close()
-    fout = open(args.output, 'a')
-    
+    fout.write('\t'.join(['chrom','pos','ref','null_P','mut_P','MLE_null_base_gtype','MLE_null_base_gtype_P','MLE_mut_base_gtype','MLE_mut_base_gtype_P','MLE_mut_location','MLE_mut_samples']))
+    fout.write("\n")
+    #fout.close()
+    #fout = open(args.output, 'a')
     
     records,score = genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,samplenames)
     #records are: chrom,pos,ref,null_P,mut_P,MLE_null_base_gtype,MLE_null_base_gtype_P,MLE_mut_base_gtype,MLE_mut_base_gtype_P,MLE_mut_location,MLE_mut_samples
