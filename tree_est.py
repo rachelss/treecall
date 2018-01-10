@@ -14,6 +14,7 @@ import itertools
 import numpy as np
 from scipy.stats import sem
 import vcf
+from shutil import copyfile
 
 from utils import *
 
@@ -96,13 +97,13 @@ def neighbor_main(args):
             best_tree,best_PL,rerooted = recursive_reroot(best_tree.copy(), PLs,mm0, mm1, base_prior,DELTA)  #why are brlens negative?
             #print(best_tree)
             print('PL_per_site = %.4f' % (best_PL/n_site))
-            best_tree.write(outfile=args.output+'.'+str(i)+'.tre', format=5)  #write best tree
+            #best_tree.write(outfile=args.output+'.'+str(i)+'.tre', format=5)  #write best tree
             #replace sample numbers with actual names
             for node in best_tree.traverse("postorder"):
                 if node.is_leaf():
                     node.name=vcffile.samples[int(node.name)]
                 
-            best_tree.write(outfile=args.output+'.'+str(i)+'names.tre', format=5)  #write best tree
+            best_tree.write(outfile=args.output+'.'+str(i)+'.tre', format=9)  #write best tree - no brlens
             fo.write(str(i) + ' ' + str(best_PL) + "\n")
             allscores.append(best_PL)
         i+=1
@@ -110,6 +111,11 @@ def neighbor_main(args):
     print(allscores)
     
     fo.close
+    
+    #get number of best tree - index of highest score
+    besttreenum = allscores.index(min(allscores))
+    copyfile(args.output+'.'+str(besttreenum)+'.tre', args.output+'.best.tre') #write best tree to file with best name
+    
     
 def init_star_tree(n):
     """Creates a tree, adds n children in star with numbers as names
