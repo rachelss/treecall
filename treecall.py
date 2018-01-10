@@ -379,9 +379,9 @@ if __name__ == '__main__':
 
     #annot uses annotate_main
     parser_annot = subp.add_parser('annot', help='annotate lineage tree with genotype calls')
+    parser_annot.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
     parser_annot.add_argument('gtcall', metavar='<gtcall>', type=str, help='input gtype calls, "-" for stdin')
     parser_annot.add_argument('output', metavar='<outnwk>', type=str, help='output tree in Newick format')
-    parser_annot.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
     parser_annot.add_argument('-t', metavar='FILE', dest='tree', type=str, required=True, help='lineage tree')
     parser_annot.set_defaults(func=annotate_main)
 
