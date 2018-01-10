@@ -170,7 +170,8 @@ def genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,leaves):
     null_PLs = np.array([node.PL0 for node in tree.iter_descendants(strategy='postorder')])
     k2 = null_PLs[k1l,nn,].argmin(axis=-1) # get most likely mutation mutant genotype
 
-    node_sids = np.array([','.join(map(str,[leaves[sid] for sid in node.sid])) for node in tree.iter_descendants(strategy='postorder')])
+    #node_sids are numbers that correspond to the order of leaves in the vcf
+    node_sids = np.array([','.join(map(str,node.sid)) for node in tree.iter_descendants(strategy='postorder')])
     records = np.array(zip(
             variants[nn,0],                         # chrom
             variants[nn,1],                         # pos
