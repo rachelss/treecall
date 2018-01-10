@@ -31,6 +31,7 @@ def read_vcf_records(filename, maxn=1000):
         np.array (tuple): variant info (chrom, pos, ref)
         np.array (int): Number of high-quality bases observed for each of the alleles
         np.array (double): List of Phred-scaled genotype likelihoods for all 10 possible genotypes
+        vcffile.samples = list of sample names
 
     """    
     print('read sites', end = ' ', file=sys.stderr)
@@ -85,7 +86,7 @@ def read_vcf_records(filename, maxn=1000):
  #   DPRs = np.array(ADs)
 
     print(' done', file=sys.stderr)
-    return variants, ADs, PLs
+    return variants, ADs, PLs, vcffile.samples
 
 def genotype_main(args):
     """
@@ -102,13 +103,15 @@ def genotype_main(args):
     
     GTYPE10 = np.array(('AA','AC','AG','AT','CC','CG','CT','GG','GT','TT'))
     print(args, file=sys.stderr)
+    
+    variants, DPRs, PLs, samplenames = read_vcf_records(args.vcf)
 
     tree = Tree(args.tree)
     #leaf names need to be from 0 -
-    leaves = tree.get_leaf_names()
+    #leaves = tree.get_leaf_names()
     for node in tree.traverse(strategy='postorder'):
         if node.is_leaf():
-            node.name = leaves.index(node.name)    
+            node.name = samplenames.index(node.name)    
     
     tree = init_tree(tree)  #tree nodes now have nid and sid where nid is node num from 0-
                             #sid is node name if leaf (numbered 0-) or names of children if not
@@ -120,8 +123,8 @@ def genotype_main(args):
     fout.close()
     fout = open(args.output, 'a')
     
-    variants, DPRs, PLs = read_vcf_records(args.vcf)
-    records,score = genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,leaves)
+    
+    records,score = genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,samplenames)
     #records are: chrom,pos,ref,null_P,mut_P,MLE_null_base_gtype,MLE_null_base_gtype_P,MLE_mut_base_gtype,MLE_mut_base_gtype_P,MLE_mut_location,MLE_mut_samples
     np.savetxt(fout, records, fmt=['%s','%d','%s','%.2e','%.2e','%s','%.2e','%s','%s','%.2e','%d','%s'], delimiter='\t')
     print('sum(PL) = %.2f' % score)
