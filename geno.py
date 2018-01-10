@@ -119,18 +119,25 @@ def genotype_main(args):
     base_prior = make_base_prior(args.het, GTYPE10) # base genotype prior
     mm,mm0,mm1 = make_mut_matrix_gtype10(args.mu)#, GTYPE10) # substitution rate matrix, with non-diagonal set to 0, with diagonal set to 0
 
+    records,records2,score = genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,samplenames)
+    #records are: chrom,pos,ref,null_P,mut_P,MLE_null_base_gtype,MLE_null_base_gtype_P,MLE_mut_base_gtype,MLE_mut_base_gtype_P,MLE_mut_location,MLE_mut_samples
+    
     fout = open(args.output, 'w')
     fout.write('\t'.join(['chrom','pos','ref','null_P','mut_P','MLE_null_base_gtype','MLE_null_base_gtype_P','MLE_mut_base_gtype','MLE_mut_base_gtype_P','MLE_mut_location','MLE_mut_samples']))
     fout.write("\n")
-    #fout.close()
     #fout = open(args.output, 'a')
-    
-    records,score = genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,samplenames)
-    #records are: chrom,pos,ref,null_P,mut_P,MLE_null_base_gtype,MLE_null_base_gtype_P,MLE_mut_base_gtype,MLE_mut_base_gtype_P,MLE_mut_location,MLE_mut_samples
     np.savetxt(fout, records, fmt=['%s','%d','%s','%.2e','%.2e','%s','%.2e','%s','%s','%.2e','%d','%s'], delimiter='\t')
-    print('sum(PL) = %.2f' % score)
     fout.close()
-
+    print('sum(PL) = %.2f' % score)
+    
+    #duplicate output with human readable leaf get_leaf_names    fout = open(args.output, 'w')
+    fout = open(args.output+'.names', 'w')
+    fout.write('\t'.join(['chrom','pos','ref','null_P','mut_P','MLE_null_base_gtype','MLE_null_base_gtype_P','MLE_mut_base_gtype','MLE_mut_base_gtype_P','MLE_mut_location','MLE_mut_samples']))
+    fout.write("\n")
+    #fout = open(args.output, 'a')
+    np.savetxt(fout, records2, fmt=['%s','%d','%s','%.2e','%.2e','%s','%.2e','%s','%s','%.2e','%d','%s'], delimiter='\t')
+    fout.close()
+    
 def genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,leaves):
     """
     uses populate_tree_PL, calc_mut_likelihoods, phred2p
@@ -172,6 +179,7 @@ def genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,leaves):
 
     #node_sids are numbers that correspond to the order of leaves in the vcf
     node_sids = np.array([','.join(map(str,node.sid)) for node in tree.iter_descendants(strategy='postorder')])
+    node_sids_byname = np.array([','.join(map(str,[leaves[sid] for sid in node.sid])) for node in tree.iter_descendants(strategy='postorder')]) #node_sids with leaf labels for human readability
     records = np.array(zip(
             variants[nn,0],                         # chrom
             variants[nn,1],                         # pos
@@ -194,4 +202,26 @@ def genotype(PLs, tree, variants, mm, mm0, mm1, base_prior,leaves):
             ('mut_base','a2'),('mut_alt','a2'),('mut_conf_p','f8'),
             ('mut_loc','i4'),('mut_smpl','a128')])
     score = p2phred(records['mut_p']+records['null_p']).sum()
-    return records,score
+    
+    records2 = np.array(zip(
+            variants[nn,0],                         # chrom
+            variants[nn,1],                         # pos
+            variants[nn,2],                         # ref
+            null_P_per_site/tree_P_per_site,        # null_P
+            mut_P_per_site/tree_P_per_site,         # mut_P
+           #GTYPE10[k],                             # MLE_base_gtype
+           #phred2p(tree_PL[nn,k])/tree_P_per_site, # MLE_base_gtype_P
+            GTYPE10[k0],                            # MLE_null_base_gtype
+            phred2p(null_PL)/tree_P_per_site,       # MLE_null_base_gtype_P
+            GTYPE10[k1g],                           # MLE_mut_base_gtype
+            GTYPE10[k2],                            # MLE_mut_alt_gtype
+            phred2p(mut_PL)/tree_P_per_site,        # MLE_mut_base_gtype_P
+            k1l,                                    # MLE_mut_location
+            node_sids_byname[k1l]),                 # MLE_mut_samples
+        dtype=[
+            ('chrom','a10'),('pos','i4'),('ref','a1'),
+            ('null_p','f8'),('mut_p','f8'),
+            ('null_base','a2'),('null_base_p','f8'),
+            ('mut_base','a2'),('mut_alt','a2'),('mut_conf_p','f8'),
+            ('mut_loc','i4'),('mut_smpl','a128')])
+    return records,records2,score
