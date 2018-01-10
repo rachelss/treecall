@@ -186,15 +186,31 @@ def read_label(filename):
 
 
 def annotate_main(args):
+    """
+    annotate lineage tree with genotype calls
+    
+    Args:
+        gtcall: input gtype calls file or "-" for stdin
+        output: output tree file name
+        tree: tree file (newick) 
+        vcf: vcf file
+    """
     print(args, file=sys.stderr)
 
-    tree = Tree(args.tree)
+    vcf_reader = vcf.Reader(filename=args.vcf)  #just need sample names here and the order found in the vcf file, which corresponds to numbers in the gtcall file
+    samplenames = vcf_reader.samples
+
+    tree = Tree(args.tree)  #tree has leaves with names
+    #number leaves to correspond to vcf file and gtcall file
+    for node in tree.traverse(strategy='postorder'):
+        if node.is_leaf():
+            node.name = samplenames.index(node.name)  
     tree = init_tree(tree)
 
     gtcall = read_gtcall(args.gtcall)
     for node in tree.iter_descendants('postorder'):
         k = gtcall['mut_smpl'] == ','.join(map(str,node.sid))
-        node.dist = k.sum()+1
+        node.dist = k.sum()
     tree.write(outfile=args.output, format=5)
 
 
@@ -206,7 +222,7 @@ def read_gtcall(filename):
            ('mut_loc','i4'),('mut_smpl','a128')]
     if filename == '-':
         filename = sys.stdin
-    return np.loadtxt(filename, dtype=dtype)
+    return np.loadtxt(filename, dtype=dtype, skiprows=1) #skip header
 
 def compare_main(args):
     	
@@ -362,6 +378,7 @@ if __name__ == '__main__':
     parser_annot = subp.add_parser('annot', help='annotate lineage tree with genotype calls')
     parser_annot.add_argument('gtcall', metavar='<gtcall>', type=str, help='input gtype calls, "-" for stdin')
     parser_annot.add_argument('output', metavar='<outnwk>', type=str, help='output tree in Newick format')
+    parser_annot.add_argument('vcf', metavar='<vcf>', type=str, help='input vcf/vcf.gz file, "-" for stdin')
     parser_annot.add_argument('-t', metavar='FILE', dest='tree', type=str, required=True, help='lineage tree')
     parser_annot.set_defaults(func=annotate_main)
 
